@@ -5,8 +5,144 @@ import { Footer } from './components/Footer';
 import { NewsItem, Match, Product, Partner, Team, GalleryItem } from './types';
 import { 
   Loader2, Calendar, MapPin, ShoppingBag, Users, 
-  Info, Camera, Mail, Trophy, ArrowRight, ChevronRight, Edit, Trash, Plus, Save
+  Info, Camera, Mail, Trophy, ArrowRight, ChevronRight, Edit, Trash, Plus, Save, Copy, Check,
+  LogIn, UserPlus
 } from 'lucide-react';
+
+// --- SQL SCRIPT CONSTANT ---
+const SQL_SCRIPT = `-- 1. Criação das Tabelas
+create table if not exists news (
+  id uuid default gen_random_uuid() primary key, 
+  created_at timestamptz default now(), 
+  title text, 
+  content text, 
+  image_url text
+);
+
+create table if not exists matches (
+  id uuid default gen_random_uuid() primary key, 
+  date timestamptz, 
+  home_team text, 
+  guest_team text, 
+  location text, 
+  score_home int, 
+  score_guest int, 
+  category text
+);
+
+create table if not exists products (
+  id uuid default gen_random_uuid() primary key, 
+  name text, 
+  price numeric, 
+  description text, 
+  image_url text
+);
+
+create table if not exists partners (
+  id uuid default gen_random_uuid() primary key, 
+  name text, 
+  website_url text, 
+  logo_url text
+);
+
+create table if not exists teams (
+  id uuid default gen_random_uuid() primary key, 
+  name text, 
+  category text, 
+  description text, 
+  image_url text
+);
+
+create table if not exists gallery (
+  id uuid default gen_random_uuid() primary key, 
+  title text, 
+  image_url text
+);
+
+-- 2. Habilitar Row Level Security (Segurança)
+alter table news enable row level security;
+alter table matches enable row level security;
+alter table products enable row level security;
+alter table partners enable row level security;
+alter table teams enable row level security;
+alter table gallery enable row level security;
+
+-- 3. Políticas de Acesso (Leitura Pública, Escrita Apenas Autenticados)
+
+-- News
+create policy "Public read news" on news for select using (true);
+create policy "Auth all news" on news for all using (auth.role() = 'authenticated');
+
+-- Matches
+create policy "Public read matches" on matches for select using (true);
+create policy "Auth all matches" on matches for all using (auth.role() = 'authenticated');
+
+-- Products
+create policy "Public read products" on products for select using (true);
+create policy "Auth all products" on products for all using (auth.role() = 'authenticated');
+
+-- Partners
+create policy "Public read partners" on partners for select using (true);
+create policy "Auth all partners" on partners for all using (auth.role() = 'authenticated');
+
+-- Teams
+create policy "Public read teams" on teams for select using (true);
+create policy "Auth all teams" on teams for all using (auth.role() = 'authenticated');
+
+-- Gallery
+create policy "Public read gallery" on gallery for select using (true);
+create policy "Auth all gallery" on gallery for all using (auth.role() = 'authenticated');`;
+
+// --- SETUP COMPONENT ---
+const DatabaseSetupInstructions = () => {
+  const [copied, setCopied] = useState(false);
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(SQL_SCRIPT);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-900 text-white p-8 flex flex-col items-center justify-center font-sans">
+      <div className="max-w-4xl w-full space-y-6">
+        <div className="flex items-center gap-4 text-primary">
+           <Info size={48} />
+           <h1 className="text-4xl font-bold">Configuração da Base de Dados</h1>
+        </div>
+        <div className="bg-gray-800 p-6 rounded-lg border-l-4 border-primary">
+          <p className="text-xl text-gray-200 mb-2">
+            O site não conseguiu encontrar as tabelas necessárias.
+          </p>
+          <p className="text-gray-400">
+            Para resolver, copia o código SQL abaixo e executa-o no <a href="https://supabase.com/dashboard/project/_/sql" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-bold">Editor SQL do Supabase</a>.
+          </p>
+        </div>
+        
+        <div className="bg-black rounded-lg border border-gray-700 overflow-hidden shadow-2xl">
+          <div className="bg-gray-800 px-4 py-2 text-xs font-mono text-gray-400 border-b border-gray-700 flex justify-between items-center">
+            <span>setup_tables.sql</span>
+            <button 
+              onClick={copyToClipboard}
+              className={`flex items-center gap-2 px-3 py-1 rounded transition-all ${copied ? 'bg-green-600 text-white' : 'hover:bg-gray-700 text-gray-300'}`}
+            >
+              {copied ? <><Check size={14}/> Copiado!</> : <><Copy size={14}/> Copiar SQL</>}
+            </button>
+          </div>
+          <pre className="p-4 overflow-x-auto text-sm font-mono text-green-400 leading-relaxed h-96">
+            {SQL_SCRIPT}
+          </pre>
+        </div>
+        
+        <div className="flex justify-center pt-4">
+          <button onClick={() => window.location.reload()} className="bg-primary text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-orange-700 transition shadow-lg transform hover:scale-105">
+            Já executei o SQL, recarregar página
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // --- Sub-components for pages ---
 
@@ -118,11 +254,13 @@ export default function App() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [gallery, setGallery] = useState<GalleryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [setupNeeded, setSetupNeeded] = useState(false);
 
   // Form states for Admin
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [isSignUp, setIsSignUp] = useState(false); // Toggle between Login and Signup
 
   // Admin Tab State
   const [adminTab, setAdminTab] = useState('noticias');
@@ -146,25 +284,33 @@ export default function App() {
   const fetchAllData = async () => {
     setLoading(true);
     try {
-      // We fetch all data in parallel usually, but for simplicity:
-      // IMPORTANT: If tables don't exist, these will error. We catch globally.
-      const newsReq = await supabase.from('news').select('*').order('created_at', { ascending: false });
-      if (newsReq.data) setNews(newsReq.data);
+      // Use Promise.all to fetch everything at once
+      const responses = await Promise.all([
+        supabase.from('news').select('*').order('created_at', { ascending: false }),
+        supabase.from('matches').select('*').order('date', { ascending: true }),
+        supabase.from('products').select('*'),
+        supabase.from('partners').select('*'),
+        supabase.from('teams').select('*'),
+        supabase.from('gallery').select('*')
+      ]);
 
-      const matchesReq = await supabase.from('matches').select('*').order('date', { ascending: true });
-      if (matchesReq.data) setMatches(matchesReq.data);
+      const [newsRes, matchesRes, prodRes, partRes, teamRes, galRes] = responses;
 
-      const prodReq = await supabase.from('products').select('*');
-      if (prodReq.data) setProducts(prodReq.data);
+      // Check if any response has the "undefined table" error code (42P01)
+      const missingTableError = responses.find(r => r.error && r.error.code === '42P01');
+      if (missingTableError) {
+        setSetupNeeded(true);
+        setLoading(false);
+        return;
+      }
 
-      const partReq = await supabase.from('partners').select('*');
-      if (partReq.data) setPartners(partReq.data);
-
-      const teamReq = await supabase.from('teams').select('*');
-      if (teamReq.data) setTeams(teamReq.data);
-
-      const galReq = await supabase.from('gallery').select('*');
-      if (galReq.data) setGallery(galReq.data);
+      // If no missing tables, set data
+      if (newsRes.data) setNews(newsRes.data);
+      if (matchesRes.data) setMatches(matchesRes.data);
+      if (prodRes.data) setProducts(prodRes.data);
+      if (partRes.data) setPartners(partRes.data);
+      if (teamRes.data) setTeams(teamRes.data);
+      if (galRes.data) setGallery(galRes.data);
 
     } catch (e) {
       console.error("Error fetching data:", e);
@@ -173,12 +319,34 @@ export default function App() {
     }
   };
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) setLoginError('Erro no login: ' + error.message);
-    else setCurrentPage('admin');
+    
+    // Helper: auto-append domain if username is simple
+    let finalEmail = email;
+    if (!email.includes('@')) {
+       finalEmail = email + '@almaviseu.pt';
+    }
+
+    if (isSignUp) {
+        const { data, error } = await supabase.auth.signUp({ email: finalEmail, password });
+        if (error) {
+            setLoginError('Erro ao criar conta: ' + error.message);
+        } else {
+            // Check if session was created immediately (email confirm disabled)
+            if (data.session) {
+                setCurrentPage('admin');
+            } else {
+                setLoginError('Conta criada! Verifique o email (se necessário) e faça login.');
+                setIsSignUp(false);
+            }
+        }
+    } else {
+        const { error } = await supabase.auth.signInWithPassword({ email: finalEmail, password });
+        if (error) setLoginError('Erro no login: ' + error.message);
+        else setCurrentPage('admin');
+    }
   };
 
   const handleLogout = async () => {
@@ -204,6 +372,9 @@ export default function App() {
 
   const renderContent = () => {
     if (loading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-primary" size={48} /></div>;
+    
+    // If tables are missing, force setup screen
+    if (setupNeeded) return <DatabaseSetupInstructions />;
 
     switch (currentPage) {
       case 'home':
@@ -441,21 +612,57 @@ export default function App() {
         return (
           <div className="min-h-screen flex items-center justify-center bg-gray-100">
              <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
-                <h2 className="text-2xl font-bold mb-6 text-center text-primary">Login Administrativo</h2>
-                {loginError && <div className="bg-red-100 text-red-700 p-3 rounded mb-4 text-sm">{loginError}</div>}
-                <form onSubmit={handleLogin} className="space-y-4">
+                <div className="text-center mb-6">
+                   <h2 className="text-2xl font-bold text-primary mb-1">
+                      {isSignUp ? 'Criar Conta Admin' : 'Login Administrativo'}
+                   </h2>
+                   <p className="text-xs text-gray-400">Acesso reservado à gestão do clube</p>
+                </div>
+                
+                {loginError && (
+                  <div className={`p-3 rounded mb-4 text-sm border-l-4 ${loginError.includes('criada') ? 'bg-green-100 text-green-700 border-green-500' : 'bg-red-100 text-red-700 border-red-500'}`}>
+                    {loginError}
+                  </div>
+                )}
+
+                <form onSubmit={handleAuth} className="space-y-4">
                   <div>
-                    <label className="block text-sm font-bold text-gray-700">Email</label>
-                    <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full border p-2 rounded" required />
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Email ou Utilizador</label>
+                    <input 
+                      type="text" 
+                      value={email} 
+                      onChange={e => setEmail(e.target.value)} 
+                      className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition" 
+                      required 
+                      placeholder="ex: admin"
+                    />
+                    <div className="text-xs text-gray-400 mt-1">
+                      {!email.includes('@') && email.length > 0 ? `Entrar como: ${email}@almaviseu.pt` : ''}
+                    </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-bold text-gray-700">Password</label>
-                    <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full border p-2 rounded" required />
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Password</label>
+                    <input 
+                      type="password" 
+                      value={password} 
+                      onChange={e => setPassword(e.target.value)} 
+                      className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition" 
+                      required 
+                      placeholder={isSignUp ? "Mínimo 6 caracteres" : ""}
+                    />
                   </div>
-                  <button type="submit" className="w-full bg-secondary text-white py-2 rounded font-bold hover:bg-gray-800">Entrar</button>
+                  <button type="submit" className="w-full bg-secondary text-white py-3 rounded font-bold hover:bg-gray-800 transition shadow-lg flex justify-center gap-2 items-center">
+                    {isSignUp ? <><UserPlus size={18}/> Registar Conta</> : <><LogIn size={18}/> Entrar</>}
+                  </button>
                 </form>
-                <div className="mt-4 text-center">
-                  <button onClick={() => setCurrentPage('home')} className="text-sm text-gray-500 hover:text-black">Voltar ao site</button>
+
+                <div className="mt-6 text-center border-t pt-4">
+                  <button onClick={() => { setIsSignUp(!isSignUp); setLoginError(''); }} className="text-sm text-primary hover:text-orange-700 font-semibold mb-4 block w-full">
+                    {isSignUp ? 'Já tem conta? Entrar' : 'Não tem conta? Registar Admin'}
+                  </button>
+                  <button onClick={() => setCurrentPage('home')} className="text-xs text-gray-400 hover:text-gray-600">
+                    Voltar ao site
+                  </button>
                 </div>
              </div>
           </div>
@@ -560,30 +767,33 @@ export default function App() {
            );
         }
 
-        const DatabaseSetup = () => (
-          <div className="bg-gray-800 text-gray-200 p-6 rounded mt-8">
-            <h4 className="font-bold text-white mb-2">Configuração Inicial da Base de Dados</h4>
-            <p className="text-sm mb-4">Copie e execute este SQL no editor do Supabase se a app estiver vazia:</p>
-            <pre className="bg-black p-4 overflow-auto text-xs font-mono h-40">
-{`
--- Run this in Supabase SQL Editor
-create table news (id uuid default gen_random_uuid() primary key, created_at timestamptz default now(), title text, content text, image_url text);
-create table matches (id uuid default gen_random_uuid() primary key, date timestamptz, home_team text, guest_team text, location text, score_home int, score_guest int, category text);
-create table products (id uuid default gen_random_uuid() primary key, name text, price numeric, description text, image_url text);
-create table partners (id uuid default gen_random_uuid() primary key, name text, website_url text, logo_url text);
-create table teams (id uuid default gen_random_uuid() primary key, name text, category text, description text, image_url text);
-create table gallery (id uuid default gen_random_uuid() primary key, title text, image_url text);
+        const DatabaseSetup = () => {
+          const [copied, setCopied] = useState(false);
+          const copyToClipboard = () => {
+            navigator.clipboard.writeText(SQL_SCRIPT);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+          };
 
--- Enable RLS (simplified for demo - make sure to add policies!)
-alter table news enable row level security;
-create policy "Public read news" on news for select using (true);
-create policy "Auth insert news" on news for insert with check (auth.role() = 'authenticated');
-create policy "Auth delete news" on news for delete using (auth.role() = 'authenticated');
--- Repeat similar policies for other tables
-`}
-            </pre>
-          </div>
-        );
+          return (
+            <div className="bg-gray-800 text-gray-200 p-6 rounded mt-8 border border-gray-700">
+              <h4 className="font-bold text-white mb-2 text-xl">Configuração Inicial da Base de Dados</h4>
+              <p className="text-sm mb-4 text-gray-400">Se precisares de recriar as tabelas, usa este código SQL:</p>
+              
+              <div className="bg-black rounded border border-gray-600">
+                <div className="flex justify-between items-center px-4 py-2 bg-gray-900 border-b border-gray-600">
+                   <span className="text-xs font-mono">setup_tables.sql</span>
+                   <button onClick={copyToClipboard} className="text-xs flex items-center gap-1 hover:text-white">
+                      {copied ? <><Check size={12}/> Copiado</> : <><Copy size={12}/> Copiar</>}
+                   </button>
+                </div>
+                <pre className="p-4 overflow-auto text-xs font-mono h-40 text-green-400">
+                  {SQL_SCRIPT}
+                </pre>
+              </div>
+            </div>
+          );
+        };
 
         return (
           <div className="min-h-screen bg-gray-100">
