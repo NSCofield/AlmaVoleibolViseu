@@ -21,7 +21,7 @@ export const Footer: React.FC = () => {
           <ul className="space-y-3 text-sm text-gray-300">
             <li className="flex items-start gap-3">
               <MapPin className="text-primary mt-1" size={18} />
-              <span>Escola Secundária Alves Marins<br />Avenida Infante Dom Henrique, 3514-709, Viseu</span>
+              <span>Escola Secundária Alves Marins<br />Avenida Infante Dom Henrique, 3514-507, Viseu</span>
             </li>
             <li className="flex items-center gap-3">
               <Mail className="text-primary" size={18} />

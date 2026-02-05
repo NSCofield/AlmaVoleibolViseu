@@ -533,7 +533,7 @@ const LandingPage = ({
                     <MapPin className="text-primary mt-1" size={32} />
                     <div>
                        <h4 className="font-bold text-white">Localização</h4>
-                       <p className="text-neutral-400">Escola Secundária Alves Marins<br/>Avenida Infante Dom Henrique, 3514-709, Viseu</p>
+                       <p className="text-neutral-400">Escola Secundária Alves Marins<br/>Avenida Infante Dom Henrique, 3514-507, Viseu</p>
                     </div>
                  </div>
                  <div className="flex items-start gap-6">
