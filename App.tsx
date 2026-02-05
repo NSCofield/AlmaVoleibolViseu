@@ -6,7 +6,7 @@ import { NewsItem, Match, Product, Partner, Team, GalleryItem } from './types';
 import { 
   Loader2, Calendar, MapPin, ShoppingBag, Users, 
   Info, Camera, Mail, Trophy, ArrowRight, ChevronRight, Edit, Trash, Plus, Save, Copy, Check,
-  LogIn, UserPlus, Upload, Image as ImageIcon, Settings
+  LogIn, UserPlus, Upload, Image as ImageIcon, Settings, Phone
 } from 'lucide-react';
 
 // --- SQL SCRIPT CONSTANT ---
@@ -465,21 +465,24 @@ const LandingPage = ({
                     <MapPin className="text-primary mt-1" size={32} />
                     <div>
                        <h4 className="font-bold text-white">Localização</h4>
-                       <p className="text-neutral-400">Pavilhão Desportivo de Viseu<br/>Rua do Desporto, 3500 Viseu</p>
+                       <p className="text-neutral-400">Escola Secundária Alves Marins<br/>Avenida Infante Dom Henrique, 3514-709, Viseu</p>
                     </div>
                  </div>
                  <div className="flex items-start gap-6">
                     <Mail className="text-primary mt-1" size={32} />
                     <div>
                        <h4 className="font-bold text-white">Email</h4>
-                       <a href="mailto:geral@almaviseu.pt" className="text-neutral-400 hover:text-white transition">geral@almaviseu.pt</a>
+                       <a href="mailto:almavoleibolviseu@gmail.com" className="text-neutral-400 hover:text-white transition">almavoleibolviseu@gmail.com</a>
                     </div>
                  </div>
                  <div className="flex items-start gap-6">
-                    <Info className="text-primary mt-1" size={32} />
+                    <Phone className="text-primary mt-1" size={32} />
                     <div>
-                       <h4 className="font-bold text-white">Horário Secretaria</h4>
-                       <p className="text-neutral-400">2ª a 6ª - 18h às 21h</p>
+                       <h4 className="font-bold text-white">Telefone</h4>
+                       <div className="text-neutral-400 flex flex-col">
+                         <span>+351 919 264 188</span>
+                         <span>+351 925 332 607</span>
+                       </div>
                     </div>
                  </div>
               </div>

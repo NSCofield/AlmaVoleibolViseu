@@ -21,15 +21,18 @@ export const Footer: React.FC = () => {
           <ul className="space-y-3 text-sm text-gray-300">
             <li className="flex items-start gap-3">
               <MapPin className="text-primary mt-1" size={18} />
-              <span>Pavilhão Desportivo de Viseu<br />Viseu, Portugal</span>
+              <span>Escola Secundária Alves Marins<br />Avenida Infante Dom Henrique, 3514-709, Viseu</span>
             </li>
             <li className="flex items-center gap-3">
               <Mail className="text-primary" size={18} />
-              <a href="mailto:geral@almaviseu.pt" className="hover:text-primary transition">geral@almaviseu.pt</a>
+              <a href="mailto:almavoleibolviseu@gmail.com" className="hover:text-primary transition">almavoleibolviseu@gmail.com</a>
             </li>
-            <li className="flex items-center gap-3">
-              <Phone className="text-primary" size={18} />
-              <span>+351 912 345 678</span>
+            <li className="flex items-start gap-3">
+              <Phone className="text-primary mt-1" size={18} />
+              <div className="flex flex-col">
+                <span>+351 919 264 188</span>
+                <span>+351 925 332 607</span>
+              </div>
             </li>
           </ul>
         </div>
