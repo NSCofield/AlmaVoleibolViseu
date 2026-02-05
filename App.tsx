@@ -235,6 +235,20 @@ const LandingPage = ({
   const upcoming = matches.filter(m => new Date(m.date) >= new Date()).slice(0, 5);
   const past = matches.filter(m => new Date(m.date) < new Date()).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
 
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    subject: '',
+    message: ''
+  });
+
+  const handleContactSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const { name, email, subject, message } = formData;
+    const body = `Nome: ${name}\nEmail: ${email}\n\nMensagem:\n${message}`;
+    window.location.href = `mailto:almavoleibol@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
+
   return (
     <div className="bg-black text-white">
       
@@ -544,13 +558,40 @@ const LandingPage = ({
            
            <div className="bg-neutral-800 p-8 rounded-2xl shadow-xl border border-neutral-700">
               <h3 className="text-2xl font-bold text-white mb-6">Envia-nos uma mensagem</h3>
-              <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); alert('Mensagem enviada (Simulação)!'); }}>
+              <form className="space-y-4" onSubmit={handleContactSubmit}>
                  <div className="grid grid-cols-2 gap-4">
-                    <input type="text" placeholder="Nome" className="bg-black border border-neutral-700 text-white rounded p-3 focus:border-primary outline-none" required />
-                    <input type="email" placeholder="Email" className="bg-black border border-neutral-700 text-white rounded p-3 focus:border-primary outline-none" required />
+                    <input 
+                      type="text" 
+                      placeholder="Nome" 
+                      className="bg-black border border-neutral-700 text-white rounded p-3 focus:border-primary outline-none" 
+                      required 
+                      value={formData.name}
+                      onChange={e => setFormData({...formData, name: e.target.value})}
+                    />
+                    <input 
+                      type="email" 
+                      placeholder="Email" 
+                      className="bg-black border border-neutral-700 text-white rounded p-3 focus:border-primary outline-none" 
+                      required 
+                      value={formData.email}
+                      onChange={e => setFormData({...formData, email: e.target.value})}
+                    />
                  </div>
-                 <input type="text" placeholder="Assunto" className="w-full bg-black border border-neutral-700 text-white rounded p-3 focus:border-primary outline-none" required />
-                 <textarea placeholder="A tua mensagem..." className="w-full bg-black border border-neutral-700 text-white rounded p-3 focus:border-primary outline-none h-32" required></textarea>
+                 <input 
+                    type="text" 
+                    placeholder="Assunto" 
+                    className="w-full bg-black border border-neutral-700 text-white rounded p-3 focus:border-primary outline-none" 
+                    required 
+                    value={formData.subject}
+                    onChange={e => setFormData({...formData, subject: e.target.value})}
+                 />
+                 <textarea 
+                    placeholder="A tua mensagem..." 
+                    className="w-full bg-black border border-neutral-700 text-white rounded p-3 focus:border-primary outline-none h-32" 
+                    required
+                    value={formData.message}
+                    onChange={e => setFormData({...formData, message: e.target.value})}
+                 ></textarea>
                  <button className="w-full bg-primary text-white font-bold py-4 rounded hover:bg-orange-700 transition uppercase tracking-widest">Enviar</button>
               </form>
            </div>
