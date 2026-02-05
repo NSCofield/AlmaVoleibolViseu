@@ -6,7 +6,7 @@ import { NewsItem, Match, Product, Partner, Team, GalleryItem } from './types';
 import { 
   Loader2, Calendar, MapPin, ShoppingBag, Users, 
   Info, Camera, Mail, Trophy, ArrowRight, ChevronRight, Edit, Trash, Plus, Save, Copy, Check,
-  LogIn, UserPlus, Upload, Image as ImageIcon
+  LogIn, UserPlus, Upload, Image as ImageIcon, Settings
 } from 'lucide-react';
 
 // --- SQL SCRIPT CONSTANT ---
@@ -68,7 +68,7 @@ alter table teams enable row level security;
 alter table gallery enable row level security;
 
 -- 3. Políticas de Acesso (Leitura Pública, Escrita Apenas Autenticados)
--- (Políticas simplificadas para garantir funcionamento, recriar se existirem)
+-- (Recriar políticas para garantir consistência)
 drop policy if exists "Public read news" on news;
 create policy "Public read news" on news for select using (true);
 drop policy if exists "Auth all news" on news;
@@ -100,14 +100,19 @@ drop policy if exists "Auth all gallery" on gallery;
 create policy "Auth all gallery" on gallery for all using (auth.role() = 'authenticated');
 
 -- 4. Storage (Imagens)
--- Tenta criar o bucket 'images' (Requer permissões de admin no projeto, pode falhar se não executado no dashboard)
+-- Garante que o bucket 'images' existe
 insert into storage.buckets (id, name, public) values ('images', 'images', true) ON CONFLICT (id) DO NOTHING;
 
--- Políticas de Storage
+-- Políticas de Storage (Permite leitura pública e upload para autenticados)
 drop policy if exists "Public Access Images" on storage.objects;
 create policy "Public Access Images" on storage.objects for select using ( bucket_id = 'images' );
+
 drop policy if exists "Auth Upload Images" on storage.objects;
 create policy "Auth Upload Images" on storage.objects for insert with check ( bucket_id = 'images' AND auth.role() = 'authenticated' );
+
+drop policy if exists "Auth Update Images" on storage.objects;
+create policy "Auth Update Images" on storage.objects for update using ( bucket_id = 'images' AND auth.role() = 'authenticated' );
+
 drop policy if exists "Auth Delete Images" on storage.objects;
 create policy "Auth Delete Images" on storage.objects for delete using ( bucket_id = 'images' AND auth.role() = 'authenticated' );
 `;
@@ -131,17 +136,16 @@ const DatabaseSetupInstructions = () => {
         </div>
         <div className="bg-gray-800 p-6 rounded-lg border-l-4 border-primary">
           <p className="text-xl text-gray-200 mb-2">
-            O site não conseguiu encontrar as tabelas necessárias.
+            Configuração necessária.
           </p>
           <p className="text-gray-400">
-            Para resolver, copia o código SQL abaixo e executa-o no <a href="https://supabase.com/dashboard/project/_/sql" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-bold">Editor SQL do Supabase</a>.
-            Isto também irá configurar o armazenamento de imagens.
+            Para corrigir erros de tabelas ou de upload de imagens ("Bucket not found"), copia o código SQL abaixo e executa-o no <a href="https://supabase.com/dashboard/project/_/sql" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-bold">Editor SQL do Supabase</a>.
           </p>
         </div>
         
         <div className="bg-black rounded-lg border border-gray-700 overflow-hidden shadow-2xl">
           <div className="bg-gray-800 px-4 py-2 text-xs font-mono text-gray-400 border-b border-gray-700 flex justify-between items-center">
-            <span>setup_tables.sql</span>
+            <span>setup_full.sql</span>
             <button 
               onClick={copyToClipboard}
               className={`flex items-center gap-2 px-3 py-1 rounded transition-all ${copied ? 'bg-green-600 text-white' : 'hover:bg-gray-700 text-gray-300'}`}
@@ -725,6 +729,7 @@ export default function App() {
                       
                       // 1. Upload to Supabase Storage
                       const { error: uploadError } = await supabase.storage.from('images').upload(fileName, file);
+                      
                       if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
 
                       // 2. Get Public URL
@@ -739,7 +744,12 @@ export default function App() {
                 setFiles({});
                 setPreviews({});
              } catch (err: any) {
-                alert("Erro: " + err.message);
+                console.error(err);
+                if (err.message && err.message.includes('Bucket not found')) {
+                   alert("⚠️ CONFIGURAÇÃO EM FALTA ⚠️\n\nO 'Bucket' de imagens (pasta para guardar fotos) ainda não existe no Supabase.\n\nCOMO RESOLVER:\n1. Vá ao separador 'Definições' no menu da esquerda.\n2. Copie o código SQL.\n3. Execute-o no SQL Editor do Supabase.");
+                } else {
+                   alert("Erro ao guardar: " + (err.message || "Erro desconhecido"));
+                }
              } finally {
                 setUploading(false);
              }
@@ -878,11 +888,11 @@ export default function App() {
           return (
             <div className="bg-gray-800 text-gray-200 p-6 rounded mt-8 border border-gray-700">
               <h4 className="font-bold text-white mb-2 text-xl">Configuração Inicial da Base de Dados</h4>
-              <p className="text-sm mb-4 text-gray-400">Se precisares de recriar as tabelas, usa este código SQL:</p>
+              <p className="text-sm mb-4 text-gray-400">Se precisares de recriar as tabelas ou corrigir o erro de upload, usa este código SQL:</p>
               
               <div className="bg-black rounded border border-gray-600">
                 <div className="flex justify-between items-center px-4 py-2 bg-gray-900 border-b border-gray-600">
-                   <span className="text-xs font-mono">setup_tables.sql</span>
+                   <span className="text-xs font-mono">setup_full.sql</span>
                    <button onClick={copyToClipboard} className="text-xs flex items-center gap-1 hover:text-white">
                       {copied ? <><Check size={12}/> Copiado</> : <><Copy size={12}/> Copiar</>}
                    </button>
@@ -907,13 +917,13 @@ export default function App() {
             <div className="flex flex-col md:flex-row h-[calc(100vh-64px)]">
               {/* Sidebar */}
               <div className="w-full md:w-64 bg-white border-r p-4 space-y-2">
-                 {['noticias', 'jogos', 'loja', 'parceiros', 'equipas', 'galeria', 'utilizadores'].map(tab => (
+                 {['noticias', 'jogos', 'loja', 'parceiros', 'equipas', 'galeria', 'definições'].map(tab => (
                    <button 
                      key={tab}
                      onClick={() => setAdminTab(tab)}
                      className={`w-full text-left p-2 rounded capitalize ${adminTab === tab ? 'bg-primary text-white' : 'hover:bg-gray-100'}`}
                    >
-                     {tab}
+                     {tab === 'definições' ? <span className="flex items-center gap-2"><Settings size={16}/> Definições</span> : tab}
                    </button>
                  ))}
               </div>
@@ -962,7 +972,7 @@ export default function App() {
                     {key: 'image_url', label: 'Imagem', type: 'image', required: true}
                  ]} />}
 
-                 {adminTab === 'utilizadores' && (
+                 {adminTab === 'definições' && (
                     <>
                       <InviteUser />
                       <DatabaseSetup />
