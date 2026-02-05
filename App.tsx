@@ -6,7 +6,7 @@ import { NewsItem, Match, Product, Partner, Team, GalleryItem } from './types';
 import { 
   Loader2, Calendar, MapPin, ShoppingBag, Users, 
   Info, Camera, Mail, Trophy, ArrowRight, ChevronRight, Edit, Trash, Plus, Save, Copy, Check,
-  LogIn, UserPlus
+  LogIn, UserPlus, Upload, Image as ImageIcon
 } from 'lucide-react';
 
 // --- SQL SCRIPT CONSTANT ---
@@ -68,30 +68,49 @@ alter table teams enable row level security;
 alter table gallery enable row level security;
 
 -- 3. Políticas de Acesso (Leitura Pública, Escrita Apenas Autenticados)
-
--- News
+-- (Políticas simplificadas para garantir funcionamento, recriar se existirem)
+drop policy if exists "Public read news" on news;
 create policy "Public read news" on news for select using (true);
+drop policy if exists "Auth all news" on news;
 create policy "Auth all news" on news for all using (auth.role() = 'authenticated');
 
--- Matches
+drop policy if exists "Public read matches" on matches;
 create policy "Public read matches" on matches for select using (true);
+drop policy if exists "Auth all matches" on matches;
 create policy "Auth all matches" on matches for all using (auth.role() = 'authenticated');
 
--- Products
+drop policy if exists "Public read products" on products;
 create policy "Public read products" on products for select using (true);
+drop policy if exists "Auth all products" on products;
 create policy "Auth all products" on products for all using (auth.role() = 'authenticated');
 
--- Partners
+drop policy if exists "Public read partners" on partners;
 create policy "Public read partners" on partners for select using (true);
+drop policy if exists "Auth all partners" on partners;
 create policy "Auth all partners" on partners for all using (auth.role() = 'authenticated');
 
--- Teams
+drop policy if exists "Public read teams" on teams;
 create policy "Public read teams" on teams for select using (true);
+drop policy if exists "Auth all teams" on teams;
 create policy "Auth all teams" on teams for all using (auth.role() = 'authenticated');
 
--- Gallery
+drop policy if exists "Public read gallery" on gallery;
 create policy "Public read gallery" on gallery for select using (true);
-create policy "Auth all gallery" on gallery for all using (auth.role() = 'authenticated');`;
+drop policy if exists "Auth all gallery" on gallery;
+create policy "Auth all gallery" on gallery for all using (auth.role() = 'authenticated');
+
+-- 4. Storage (Imagens)
+-- Tenta criar o bucket 'images' (Requer permissões de admin no projeto, pode falhar se não executado no dashboard)
+insert into storage.buckets (id, name, public) values ('images', 'images', true) ON CONFLICT (id) DO NOTHING;
+
+-- Políticas de Storage
+drop policy if exists "Public Access Images" on storage.objects;
+create policy "Public Access Images" on storage.objects for select using ( bucket_id = 'images' );
+drop policy if exists "Auth Upload Images" on storage.objects;
+create policy "Auth Upload Images" on storage.objects for insert with check ( bucket_id = 'images' AND auth.role() = 'authenticated' );
+drop policy if exists "Auth Delete Images" on storage.objects;
+create policy "Auth Delete Images" on storage.objects for delete using ( bucket_id = 'images' AND auth.role() = 'authenticated' );
+`;
 
 // --- SETUP COMPONENT ---
 const DatabaseSetupInstructions = () => {
@@ -116,6 +135,7 @@ const DatabaseSetupInstructions = () => {
           </p>
           <p className="text-gray-400">
             Para resolver, copia o código SQL abaixo e executa-o no <a href="https://supabase.com/dashboard/project/_/sql" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-bold">Editor SQL do Supabase</a>.
+            Isto também irá configurar o armazenamento de imagens.
           </p>
         </div>
         
@@ -678,12 +698,51 @@ export default function App() {
         const AdminList = ({ title, data, table, fields }: { title: string, data: any[], table: string, fields: any[] }) => {
            const [isAdding, setIsAdding] = useState(false);
            const [formData, setFormData] = useState<any>({});
+           const [files, setFiles] = useState<Record<string, File>>({});
+           const [previews, setPreviews] = useState<Record<string, string>>({});
+           const [uploading, setUploading] = useState(false);
+
+           const handleFileChange = (key: string, e: React.ChangeEvent<HTMLInputElement>) => {
+              if (e.target.files && e.target.files[0]) {
+                 const file = e.target.files[0];
+                 setFiles(prev => ({ ...prev, [key]: file }));
+                 setPreviews(prev => ({ ...prev, [key]: URL.createObjectURL(file) }));
+              }
+           };
 
            const handleSubmit = async (e: React.FormEvent) => {
              e.preventDefault();
-             await createItem(table, formData);
-             setIsAdding(false);
-             setFormData({});
+             setUploading(true);
+             try {
+                const finalData = { ...formData };
+
+                // Handle Image Uploads
+                for (const key of Object.keys(files)) {
+                   const file = files[key];
+                   if (file) {
+                      const fileExt = file.name.split('.').pop();
+                      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+                      
+                      // 1. Upload to Supabase Storage
+                      const { error: uploadError } = await supabase.storage.from('images').upload(fileName, file);
+                      if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
+
+                      // 2. Get Public URL
+                      const { data: { publicUrl } } = supabase.storage.from('images').getPublicUrl(fileName);
+                      finalData[key] = publicUrl;
+                   }
+                }
+
+                await createItem(table, finalData);
+                setIsAdding(false);
+                setFormData({});
+                setFiles({});
+                setPreviews({});
+             } catch (err: any) {
+                alert("Erro: " + err.message);
+             } finally {
+                setUploading(false);
+             }
            };
 
            return (
@@ -699,13 +758,42 @@ export default function App() {
                   <form onSubmit={handleSubmit} className="mb-6 p-4 bg-gray-50 border rounded space-y-3">
                     {fields.map(f => (
                       <div key={f.key}>
-                        <label className="block text-xs font-bold uppercase text-gray-500">{f.label}</label>
+                        <label className="block text-xs font-bold uppercase text-gray-500 mb-1">{f.label}</label>
+                        
                         {f.type === 'textarea' ? (
-                          <textarea className="w-full border p-2 rounded" onChange={e => setFormData({...formData, [f.key]: e.target.value})} required={f.required} />
+                          <textarea 
+                            className="w-full border p-2 rounded focus:ring-2 focus:ring-primary outline-none" 
+                            onChange={e => setFormData({...formData, [f.key]: e.target.value})} 
+                            required={f.required} 
+                            rows={3}
+                          />
+                        ) : f.type === 'image' ? (
+                           <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:bg-gray-50 transition cursor-pointer relative">
+                              <input 
+                                type="file" 
+                                accept="image/*"
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                onChange={(e) => handleFileChange(f.key, e)}
+                                required={f.required}
+                              />
+                              {previews[f.key] ? (
+                                 <div className="relative h-40 w-full">
+                                    <img src={previews[f.key]} className="h-full w-full object-contain mx-auto" />
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 text-white text-xs opacity-0 hover:opacity-100 transition">
+                                       Alterar Imagem
+                                    </div>
+                                 </div>
+                              ) : (
+                                 <div className="flex flex-col items-center text-gray-400 py-4">
+                                    <ImageIcon size={32} className="mb-2" />
+                                    <span className="text-sm">Clique ou arraste uma imagem</span>
+                                 </div>
+                              )}
+                           </div>
                         ) : (
                           <input 
                             type={f.type || 'text'} 
-                            className="w-full border p-2 rounded" 
+                            className="w-full border p-2 rounded focus:ring-2 focus:ring-primary outline-none" 
                             onChange={e => setFormData({...formData, [f.key]: e.target.value})} 
                             required={f.required} 
                             placeholder={f.placeholder}
@@ -713,7 +801,13 @@ export default function App() {
                         )}
                       </div>
                     ))}
-                    <button className="bg-primary text-white px-4 py-2 rounded font-bold text-sm">Guardar</button>
+                    <button 
+                      disabled={uploading}
+                      className={`bg-primary text-white px-4 py-2 rounded font-bold text-sm flex items-center gap-2 ${uploading ? 'opacity-50' : 'hover:bg-orange-700'}`}
+                    >
+                      {uploading ? <Loader2 className="animate-spin" size={16}/> : <Save size={16} />} 
+                      {uploading ? 'A enviar...' : 'Guardar'}
+                    </button>
                   </form>
                 )}
 
@@ -727,12 +821,18 @@ export default function App() {
                     </thead>
                     <tbody>
                       {data.map(item => (
-                        <tr key={item.id} className="border-b">
+                        <tr key={item.id} className="border-b hover:bg-gray-50">
                           {fields.slice(0, 3).map(f => (
-                            <td key={f.key} className="p-2 truncate max-w-[200px]">{item[f.key]?.toString()}</td>
+                            <td key={f.key} className="p-2 truncate max-w-[200px]">
+                               {f.type === 'image' && item[f.key] ? (
+                                  <img src={item[f.key]} className="h-10 w-10 object-cover rounded" />
+                               ) : (
+                                  item[f.key]?.toString()
+                               )}
+                            </td>
                           ))}
                           <td className="p-2">
-                            <button onClick={() => deleteItem(table, item.id)} className="text-red-600 hover:text-red-800"><Trash size={16} /></button>
+                            <button onClick={() => deleteItem(table, item.id)} className="text-red-600 hover:text-red-800 transition"><Trash size={16} /></button>
                           </td>
                         </tr>
                       ))}
@@ -824,7 +924,7 @@ export default function App() {
                  {adminTab === 'noticias' && <AdminList title="Gerir Notícias" data={news} table="news" fields={[
                     {key: 'title', label: 'Título', required: true},
                     {key: 'content', label: 'Conteúdo', type: 'textarea'},
-                    {key: 'image_url', label: 'URL Imagem'}
+                    {key: 'image_url', label: 'Imagem', type: 'image'}
                  ]} />}
 
                  {adminTab === 'jogos' && <AdminList title="Gerir Jogos" data={matches} table="matches" fields={[
@@ -841,25 +941,25 @@ export default function App() {
                     {key: 'name', label: 'Nome', required: true},
                     {key: 'price', label: 'Preço', type: 'number', required: true},
                     {key: 'description', label: 'Descrição'},
-                    {key: 'image_url', label: 'URL Imagem'}
+                    {key: 'image_url', label: 'Imagem', type: 'image'}
                  ]} />}
 
                  {adminTab === 'parceiros' && <AdminList title="Gerir Parceiros" data={partners} table="partners" fields={[
                     {key: 'name', label: 'Nome', required: true},
                     {key: 'website_url', label: 'Website'},
-                    {key: 'logo_url', label: 'URL Logo'}
+                    {key: 'logo_url', label: 'Logo', type: 'image'}
                  ]} />}
 
                  {adminTab === 'equipas' && <AdminList title="Gerir Equipas" data={teams} table="teams" fields={[
                     {key: 'name', label: 'Nome', required: true},
                     {key: 'category', label: 'Escalão'},
                     {key: 'description', label: 'Descrição', type: 'textarea'},
-                    {key: 'image_url', label: 'URL Foto'}
+                    {key: 'image_url', label: 'Foto', type: 'image'}
                  ]} />}
 
                  {adminTab === 'galeria' && <AdminList title="Gerir Fotos" data={gallery} table="gallery" fields={[
                     {key: 'title', label: 'Título'},
-                    {key: 'image_url', label: 'URL Imagem', required: true}
+                    {key: 'image_url', label: 'Imagem', type: 'image', required: true}
                  ]} />}
 
                  {adminTab === 'utilizadores' && (
