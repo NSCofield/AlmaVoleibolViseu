@@ -7,7 +7,7 @@ import {
   Loader2, Calendar, MapPin, ShoppingBag, Users, 
   Info, Camera, Mail, Trophy, ArrowRight, ChevronRight, Edit, Trash, Plus, Save, Copy, Check,
   LogIn, UserPlus, Upload, Image as ImageIcon, Settings, Phone, Home, Layout, FileText,
-  Bold, Italic, Underline, Type, Palette
+  Bold, Italic, Underline, Type, Palette, AlignLeft, AlignCenter, AlignRight, List, ListOrdered, Highlighter
 } from 'lucide-react';
 
 // --- SQL SCRIPT CONSTANT ---
@@ -182,6 +182,7 @@ const stripHtml = (html: string) => {
 // --- RICH TEXT EDITOR COMPONENT ---
 const RichTextEditor = ({ value, onChange, className, placeholder }: { value: string, onChange: (val: string) => void, className?: string, placeholder?: string }) => {
   const editorRef = useRef<HTMLDivElement>(null);
+  const [customSize, setCustomSize] = useState('16');
 
   // Sync value to innerHTML when value changes externally
   useEffect(() => {
@@ -193,53 +194,117 @@ const RichTextEditor = ({ value, onChange, className, placeholder }: { value: st
     }
   }, [value]);
 
-  const execCmd = (command: string, arg: string | undefined = undefined) => {
-    document.execCommand(command, false, arg);
-    if (editorRef.current) {
-        onChange(editorRef.current.innerHTML);
-    }
-  };
-
   const handleInput = () => {
     if (editorRef.current) {
         onChange(editorRef.current.innerHTML);
     }
   };
 
+  const execCmd = (command: string, arg: string | undefined = undefined) => {
+    document.execCommand(command, false, arg);
+    handleInput();
+  };
+
+  const applyCustomFontSize = () => {
+    // Hack to support custom pixels since execCommand 'fontSize' only supports 1-7
+    // We set it to a dummy value (7) then find that font tag and apply CSS
+    document.execCommand('fontSize', false, '7');
+    const fontElements = document.getElementsByTagName("font");
+    for (let i = 0; i < fontElements.length; i++) {
+        if (fontElements[i].getAttribute("size") === "7") {
+            fontElements[i].removeAttribute("size");
+            fontElements[i].style.fontSize = `${customSize}px`;
+        }
+    }
+    handleInput();
+  };
+
+  const fontList = [
+    "Inter", "Arial", "Arial Black", "Helvetica", "Verdana", "Tahoma", "Trebuchet MS", 
+    "Times New Roman", "Georgia", "Garamond", "Courier New", "Brush Script MT", "Comic Sans MS", "Impact"
+  ];
+
   return (
-    <div className={`border rounded bg-white text-black overflow-hidden ${className}`}>
-      <div className="flex flex-wrap items-center gap-1 bg-neutral-100 p-2 border-b">
-        <button type="button" onClick={() => execCmd('bold')} className="p-1 hover:bg-neutral-300 rounded" title="Negrito"><Bold size={16}/></button>
-        <button type="button" onClick={() => execCmd('italic')} className="p-1 hover:bg-neutral-300 rounded" title="Itálico"><Italic size={16}/></button>
-        <button type="button" onClick={() => execCmd('underline')} className="p-1 hover:bg-neutral-300 rounded" title="Sublinhado"><Underline size={16}/></button>
-        <div className="w-px h-6 bg-neutral-300 mx-1"></div>
-        <select onChange={(e) => execCmd('fontSize', e.target.value)} className="text-xs p-1 border rounded bg-white h-7">
-           <option value="3">Tamanho</option>
-           <option value="1">Pequeno</option>
-           <option value="3">Normal</option>
-           <option value="5">Grande</option>
-           <option value="7">Gigante</option>
-        </select>
-        <select onChange={(e) => execCmd('fontName', e.target.value)} className="text-xs p-1 border rounded bg-white h-7 w-24">
-           <option value="Arial">Fonte</option>
-           <option value="Inter">Inter</option>
-           <option value="Arial">Arial</option>
-           <option value="Courier New">Mono</option>
-           <option value="Georgia">Serif</option>
-        </select>
-        <div className="flex items-center gap-1 ml-2 border rounded bg-white px-1">
-           <Palette size={14} className="text-neutral-500"/>
-           <input type="color" onChange={(e) => execCmd('foreColor', e.target.value)} className="w-6 h-6 border-none bg-transparent cursor-pointer" title="Cor do Texto" />
+    <div className={`border rounded bg-white text-black overflow-hidden shadow-sm ${className}`}>
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center gap-1 bg-neutral-100 p-2 border-b select-none">
+        
+        {/* Style */}
+        <div className="flex gap-0.5 border-r pr-2 mr-1">
+          <button type="button" onClick={() => execCmd('bold')} className="p-1.5 hover:bg-neutral-300 rounded" title="Negrito"><Bold size={16}/></button>
+          <button type="button" onClick={() => execCmd('italic')} className="p-1.5 hover:bg-neutral-300 rounded" title="Itálico"><Italic size={16}/></button>
+          <button type="button" onClick={() => execCmd('underline')} className="p-1.5 hover:bg-neutral-300 rounded" title="Sublinhado"><Underline size={16}/></button>
         </div>
+
+        {/* Alignment */}
+        <div className="flex gap-0.5 border-r pr-2 mr-1">
+          <button type="button" onClick={() => execCmd('justifyLeft')} className="p-1.5 hover:bg-neutral-300 rounded" title="Esquerda"><AlignLeft size={16}/></button>
+          <button type="button" onClick={() => execCmd('justifyCenter')} className="p-1.5 hover:bg-neutral-300 rounded" title="Centro"><AlignCenter size={16}/></button>
+          <button type="button" onClick={() => execCmd('justifyRight')} className="p-1.5 hover:bg-neutral-300 rounded" title="Direita"><AlignRight size={16}/></button>
+        </div>
+
+        {/* Fonts */}
+        <div className="flex gap-2 border-r pr-2 mr-1 items-center">
+            <select onChange={(e) => execCmd('fontName', e.target.value)} className="text-xs p-1.5 border rounded bg-white h-8 w-28 cursor-pointer focus:border-primary outline-none">
+              <option value="Inter">Fonte</option>
+              {fontList.map(font => (
+                <option key={font} value={font} style={{fontFamily: font}}>{font}</option>
+              ))}
+            </select>
+
+            {/* Size Input */}
+            <div className="flex items-center gap-1 bg-white border rounded px-1 h-8">
+              <Type size={14} className="text-neutral-500"/>
+              <input 
+                type="number" 
+                value={customSize} 
+                onChange={(e) => setCustomSize(e.target.value)}
+                className="w-10 text-xs border-none outline-none text-center"
+                title="Tamanho da fonte em px"
+              />
+              <span className="text-[10px] text-neutral-400">px</span>
+              <button 
+                type="button" 
+                onClick={applyCustomFontSize} 
+                className="text-[10px] font-bold bg-neutral-200 hover:bg-primary hover:text-white px-1.5 rounded transition"
+              >
+                OK
+              </button>
+            </div>
+        </div>
+
+        {/* Lists */}
+        <div className="flex gap-0.5 border-r pr-2 mr-1">
+          <button type="button" onClick={() => execCmd('insertUnorderedList')} className="p-1.5 hover:bg-neutral-300 rounded" title="Lista"><List size={16}/></button>
+          <button type="button" onClick={() => execCmd('insertOrderedList')} className="p-1.5 hover:bg-neutral-300 rounded" title="Lista Numerada"><ListOrdered size={16}/></button>
+        </div>
+
+        {/* Colors */}
+        <div className="flex items-center gap-2 pl-1">
+           <div className="flex items-center gap-1 border rounded bg-white px-1 h-8 hover:border-primary transition" title="Cor do Texto">
+              <Palette size={14} className="text-neutral-500"/>
+              <input type="color" onChange={(e) => execCmd('foreColor', e.target.value)} className="w-6 h-6 border-none bg-transparent cursor-pointer" />
+           </div>
+           <div className="flex items-center gap-1 border rounded bg-white px-1 h-8 hover:border-primary transition" title="Cor de Fundo (Realce)">
+              <Highlighter size={14} className="text-neutral-500"/>
+              <input type="color" defaultValue="#ffffff" onChange={(e) => execCmd('hiliteColor', e.target.value)} className="w-6 h-6 border-none bg-transparent cursor-pointer" />
+           </div>
+        </div>
+
       </div>
+      
+      {/* Editor Area */}
       <div 
         ref={editorRef}
-        className="p-3 min-h-[100px] outline-none max-h-[400px] overflow-y-auto"
+        className="p-4 min-h-[150px] outline-none max-h-[500px] overflow-y-auto leading-normal"
         contentEditable
         onInput={handleInput}
         onBlur={handleInput}
         data-placeholder={placeholder}
       ></div>
+      <div className="bg-neutral-50 p-1 text-[10px] text-neutral-400 text-right border-t">
+        Editor HTML
+      </div>
     </div>
   );
 };
