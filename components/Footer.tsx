@@ -41,10 +41,10 @@ export const Footer: React.FC = () => {
         <div>
           <h4 className="text-lg font-bold mb-4 border-b border-gray-700 pb-2">Segue-nos</h4>
           <div className="flex space-x-4">
-            <a href="#" className="bg-gray-800 p-3 rounded-full hover:bg-primary transition-colors duration-300">
+            <a href="https://www.facebook.com/VivAlmaVoleibolViseu" target="_blank" rel="noopener noreferrer" className="bg-gray-800 p-3 rounded-full hover:bg-primary transition-colors duration-300">
               <Facebook size={20} />
             </a>
-            <a href="#" className="bg-gray-800 p-3 rounded-full hover:bg-primary transition-colors duration-300">
+            <a href="https://www.instagram.com/vivalma.voleibol.viseu/" target="_blank" rel="noopener noreferrer" className="bg-gray-800 p-3 rounded-full hover:bg-primary transition-colors duration-300">
               <Instagram size={20} />
             </a>
           </div>
