@@ -54,13 +54,42 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentPage, isAdmin
     { id: 'contacts', label: 'Contactos' },
   ];
 
-  const handleNav = (page: string) => {
-    onNavigate(page);
+  const handleNav = (id: string) => {
+    // If it's a special page (admin/login), navigate directly
+    if (id === 'admin' || id === 'login') {
+      onNavigate(id);
+      setIsOpen(false);
+      return;
+    }
+
+    // If we are not on the landing page (e.g. we are in admin), go to home first
+    if (currentPage !== 'home') {
+      onNavigate('home');
+      // Wait for render then scroll
+      setTimeout(() => {
+        const element = document.getElementById(id);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth' });
+        } else {
+          window.scrollTo(0,0);
+        }
+      }, 100);
+    } else {
+      // We are already on home, just scroll
+      if (id === 'home') {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        const element = document.getElementById(id);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth' });
+        }
+      }
+    }
     setIsOpen(false);
   };
 
   return (
-    <nav className="bg-secondary text-white sticky top-0 z-50 border-b-4 border-primary shadow-lg">
+    <nav className="bg-black/95 backdrop-blur-md text-white sticky top-0 z-50 border-b-2 border-primary shadow-2xl">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-24">
           {/* Logo and Brand Name */}
@@ -70,17 +99,13 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentPage, isAdmin
           </div>
           
           {/* Desktop Navigation */}
-          <div className="hidden md:block">
-            <div className="ml-10 flex items-baseline space-x-4">
+          <div className="hidden lg:block">
+            <div className="ml-10 flex items-baseline space-x-2">
               {navItems.map((item) => (
                 <button
                   key={item.id}
                   onClick={() => handleNav(item.id)}
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
-                    currentPage === item.id
-                      ? 'bg-primary text-white'
-                      : 'text-gray-300 hover:bg-gray-800 hover:text-primary'
-                  }`}
+                  className="px-3 py-2 rounded-md text-sm font-bold uppercase tracking-wider transition-all duration-200 text-gray-300 hover:text-primary hover:bg-white/5"
                 >
                   {item.label}
                 </button>
@@ -88,14 +113,14 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentPage, isAdmin
               {isAdmin ? (
                 <button
                    onClick={() => handleNav('admin')}
-                   className="px-3 py-2 rounded-md text-sm font-bold bg-white text-secondary hover:bg-gray-200 flex items-center gap-2"
+                   className="ml-4 px-4 py-2 rounded-full text-sm font-bold bg-primary text-white hover:bg-orange-700 flex items-center gap-2 transition-transform hover:scale-105"
                 >
                   <User size={16} /> Admin
                 </button>
               ) : (
                 <button
                    onClick={() => handleNav('login')}
-                   className="text-gray-500 hover:text-white"
+                   className="ml-2 text-gray-500 hover:text-white transition"
                    title="Área de Admin"
                 >
                   <User size={16} />
@@ -105,10 +130,10 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentPage, isAdmin
           </div>
           
           {/* Mobile menu button */}
-          <div className="-mr-2 flex md:hidden">
+          <div className="-mr-2 flex lg:hidden">
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-white hover:bg-gray-700 focus:outline-none"
+              className="inline-flex items-center justify-center p-2 rounded-md text-primary hover:text-white hover:bg-gray-800 focus:outline-none"
             >
               {isOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
@@ -118,22 +143,18 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentPage, isAdmin
 
       {/* Mobile menu */}
       {isOpen && (
-        <div className="md:hidden bg-secondary pb-4 shadow-xl border-t border-gray-800">
+        <div className="lg:hidden bg-black border-t border-gray-800">
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
             {navItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => handleNav(item.id)}
-                className={`block w-full text-left px-3 py-2 rounded-md text-base font-medium ${
-                  currentPage === item.id
-                    ? 'bg-primary text-white'
-                    : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                }`}
+                className="block w-full text-left px-3 py-3 rounded-md text-base font-bold text-gray-300 hover:bg-gray-900 hover:text-primary border-b border-gray-900"
               >
                 {item.label}
               </button>
             ))}
-            <div className="border-t border-gray-700 mt-2 pt-2">
+            <div className="pt-4">
               <button
                   onClick={() => handleNav(isAdmin ? 'admin' : 'login')}
                   className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-primary hover:text-white flex items-center gap-2"
