@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from './lib/supabase';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
-import { NewsItem, Match, Product, Partner, Team, GalleryItem } from './types';
+import { NewsItem, Match, Product, Partner, Team, GalleryItem, OrganizationMember } from './types';
 import { 
   Loader2, Calendar, MapPin, ShoppingBag, Users, 
   Info, Camera, Mail, Trophy, ArrowRight, ChevronRight, Edit, Trash, Plus, Save, Copy, Check,
@@ -59,6 +59,14 @@ create table if not exists gallery (
   image_url text
 );
 
+create table if not exists organization (
+  id uuid default gen_random_uuid() primary key,
+  name text,
+  role text,
+  image_url text,
+  created_at timestamptz default now()
+);
+
 -- 2. Habilitar Row Level Security (Segurança)
 alter table news enable row level security;
 alter table matches enable row level security;
@@ -66,6 +74,7 @@ alter table products enable row level security;
 alter table partners enable row level security;
 alter table teams enable row level security;
 alter table gallery enable row level security;
+alter table organization enable row level security;
 
 -- 3. Políticas de Acesso (Leitura Pública, Escrita Apenas Autenticados)
 -- (Recriar políticas para garantir consistência)
@@ -99,6 +108,12 @@ create policy "Public read gallery" on gallery for select using (true);
 drop policy if exists "Auth all gallery" on gallery;
 create policy "Auth all gallery" on gallery for all using (auth.role() = 'authenticated');
 
+drop policy if exists "Public read organization" on organization;
+create policy "Public read organization" on organization for select using (true);
+drop policy if exists "Auth all organization" on organization;
+create policy "Auth all organization" on organization for all using (auth.role() = 'authenticated');
+
+
 -- 4. Storage (Imagens)
 -- Garante que o bucket 'images' existe
 insert into storage.buckets (id, name, public) values ('images', 'images', true) ON CONFLICT (id) DO NOTHING;
@@ -115,6 +130,19 @@ create policy "Auth Update Images" on storage.objects for update using ( bucket_
 
 drop policy if exists "Auth Delete Images" on storage.objects;
 create policy "Auth Delete Images" on storage.objects for delete using ( bucket_id = 'images' AND auth.role() = 'authenticated' );
+
+-- 5. Dados de Exemplo (Opcional - para não começar vazio)
+insert into organization (name, role, image_url)
+select 'João Silva', 'Presidente', null
+where not exists (select 1 from organization);
+
+insert into organization (name, role, image_url)
+select 'Ana Santos', 'Vice-Presidente', null
+where not exists (select 1 from organization where role = 'Vice-Presidente');
+
+insert into organization (name, role, image_url)
+select 'Pedro Martins', 'Diretor Desportivo', null
+where not exists (select 1 from organization where role = 'Diretor Desportivo');
 `;
 
 // --- SETUP COMPONENT ---
@@ -136,10 +164,11 @@ const DatabaseSetupInstructions = () => {
         </div>
         <div className="bg-neutral-900 p-6 rounded-lg border-l-4 border-primary">
           <p className="text-xl text-neutral-200 mb-2">
-            Configuração necessária.
+            Atualização necessária.
           </p>
           <p className="text-neutral-400">
-            Para corrigir erros de tabelas ou de upload de imagens ("Bucket not found"), copia o código SQL abaixo e executa-o no <a href="https://supabase.com/dashboard/project/_/sql" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-bold">Editor SQL do Supabase</a>.
+            Adicionámos o <strong>Organograma</strong>. Para que funcione, tens de atualizar a base de dados.
+            Copia o código SQL abaixo e executa-o no <a href="https://supabase.com/dashboard/project/_/sql" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-bold">Editor SQL do Supabase</a>.
           </p>
         </div>
         
@@ -187,7 +216,8 @@ const LandingPage = ({
   products, 
   partners, 
   teams, 
-  gallery 
+  gallery,
+  organization
 }: { 
   onNavigate: (p: string) => void, 
   news: NewsItem[], 
@@ -195,7 +225,8 @@ const LandingPage = ({
   products: Product[],
   partners: Partner[],
   teams: Team[],
-  gallery: GalleryItem[]
+  gallery: GalleryItem[],
+  organization: OrganizationMember[]
 }) => {
   const nextMatch = matches
     .filter(m => new Date(m.date) >= new Date())
@@ -417,7 +448,7 @@ const LandingPage = ({
             O <strong>ALMA Viseu</strong> é mais do que um clube de voleibol; é uma comunidade dedicada ao desenvolvimento desportivo e pessoal dos jovens de Viseu. 
             Fundado com a missão de revitalizar o voleibol na região centro, o clube tem crescido sustentadamente, promovendo valores como o respeito, a disciplina e o espírito de sacrifício.
           </p>
-          <div className="grid grid-cols-3 gap-4 text-center">
+          <div className="grid grid-cols-3 gap-4 text-center mb-16">
              <div className="p-4 bg-black rounded-lg border border-neutral-800">
                 <div className="text-3xl font-bold text-primary mb-1">2022</div>
                 <div className="text-xs text-neutral-500 uppercase">Fundação</div>
@@ -431,6 +462,29 @@ const LandingPage = ({
                 <div className="text-xs text-neutral-500 uppercase">Atletas</div>
              </div>
           </div>
+
+          {/* ORGANIZATIONAL CHART (ORGANOGRAMA) */}
+          {organization.length > 0 && (
+            <div className="border-t border-neutral-800 pt-16">
+              <h3 className="text-2xl font-bold text-white mb-12 uppercase tracking-widest">Estrutura Diretiva</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-8 gap-y-12">
+                 {organization.map(member => (
+                    <div key={member.id} className="flex flex-col items-center group">
+                       <div className="w-40 h-40 rounded-full overflow-hidden border-4 border-neutral-800 group-hover:border-primary transition duration-300 mb-6 shadow-xl relative">
+                          <img 
+                            src={member.image_url || `https://ui-avatars.com/api/?name=${member.name}&background=random`} 
+                            alt={member.name}
+                            className="w-full h-full object-cover"
+                          />
+                       </div>
+                       <h4 className="text-xl font-bold text-white mb-1">{member.name}</h4>
+                       <p className="text-primary text-sm uppercase font-bold tracking-wider">{member.role}</p>
+                    </div>
+                 ))}
+              </div>
+            </div>
+          )}
+
         </div>
       </section>
 
@@ -521,6 +575,7 @@ export default function App() {
   const [partners, setPartners] = useState<Partner[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [gallery, setGallery] = useState<GalleryItem[]>([]);
+  const [organization, setOrganization] = useState<OrganizationMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [setupNeeded, setSetupNeeded] = useState(false);
 
@@ -558,10 +613,11 @@ export default function App() {
         supabase.from('products').select('*'),
         supabase.from('partners').select('*'),
         supabase.from('teams').select('*'),
-        supabase.from('gallery').select('*')
+        supabase.from('gallery').select('*'),
+        supabase.from('organization').select('*').order('created_at', { ascending: true })
       ]);
 
-      const [newsRes, matchesRes, prodRes, partRes, teamRes, galRes] = responses;
+      const [newsRes, matchesRes, prodRes, partRes, teamRes, galRes, orgRes] = responses;
       const missingTableError = responses.find(r => r.error && r.error.code === '42P01');
       if (missingTableError) {
         setSetupNeeded(true);
@@ -575,6 +631,7 @@ export default function App() {
       if (partRes.data) setPartners(partRes.data);
       if (teamRes.data) setTeams(teamRes.data);
       if (galRes.data) setGallery(galRes.data);
+      if (orgRes.data) setOrganization(orgRes.data);
 
     } catch (e) {
       console.error("Error fetching data:", e);
@@ -725,7 +782,7 @@ export default function App() {
         <div className="flex flex-col md:flex-row h-[calc(100vh-64px)]">
           <div className="w-full md:w-64 bg-white border-r p-4 flex flex-col justify-between">
             <div className="space-y-2">
-              {['noticias', 'jogos', 'loja', 'parceiros', 'equipas', 'galeria', 'definições'].map(tab => (
+              {['noticias', 'jogos', 'loja', 'parceiros', 'equipas', 'galeria', 'organograma', 'definições'].map(tab => (
                 <button key={tab} onClick={() => setAdminTab(tab)} className={`w-full text-left p-2 rounded capitalize font-medium ${adminTab === tab ? 'bg-primary text-white' : 'hover:bg-neutral-100 text-neutral-700'}`}>
                   {tab === 'definições' ? <span className="flex items-center gap-2"><Settings size={16}/> Definições</span> : tab}
                 </button>
@@ -743,6 +800,7 @@ export default function App() {
               {adminTab === 'parceiros' && <AdminList title="Gerir Parceiros" data={partners} table="partners" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'website_url', label: 'Website'}, {key: 'logo_url', label: 'Logo', type: 'image'}]} />}
               {adminTab === 'equipas' && <AdminList title="Gerir Equipas" data={teams} table="teams" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'category', label: 'Escalão'}, {key: 'description', label: 'Descrição', type: 'textarea'}, {key: 'image_url', label: 'Foto', type: 'image'}]} />}
               {adminTab === 'galeria' && <AdminList title="Gerir Fotos" data={gallery} table="gallery" fields={[{key: 'title', label: 'Título'}, {key: 'image_url', label: 'Imagem', type: 'image', required: true}]} />}
+              {adminTab === 'organograma' && <AdminList title="Gerir Direção" data={organization} table="organization" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'role', label: 'Cargo', required: true}, {key: 'image_url', label: 'Foto', type: 'image'}]} />}
               {adminTab === 'definições' && <div className="p-4 bg-white rounded shadow text-neutral-500">Funcionalidades de sistema (Adicionar Admin / Reset DB) disponíveis no código original.</div>}
           </div>
         </div>
@@ -785,7 +843,7 @@ export default function App() {
     }
 
     // LANDING PAGE (DEFAULT)
-    return <LandingPage onNavigate={setCurrentPage} news={news} matches={matches} products={products} partners={partners} teams={teams} gallery={gallery} />;
+    return <LandingPage onNavigate={setCurrentPage} news={news} matches={matches} products={products} partners={partners} teams={teams} gallery={gallery} organization={organization} />;
   };
 
   return (

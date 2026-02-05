@@ -46,6 +46,13 @@ export interface GalleryItem {
   image_url: string;
 }
 
+export interface OrganizationMember {
+  id: string;
+  name: string;
+  role: string;
+  image_url: string;
+}
+
 export interface User {
   id: string;
   email: string;
