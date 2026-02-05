@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './lib/supabase';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
@@ -6,7 +6,8 @@ import { NewsItem, Match, Product, Partner, Team, GalleryItem, OrganizationMembe
 import { 
   Loader2, Calendar, MapPin, ShoppingBag, Users, 
   Info, Camera, Mail, Trophy, ArrowRight, ChevronRight, Edit, Trash, Plus, Save, Copy, Check,
-  LogIn, UserPlus, Upload, Image as ImageIcon, Settings, Phone, Home, Layout, FileText
+  LogIn, UserPlus, Upload, Image as ImageIcon, Settings, Phone, Home, Layout, FileText,
+  Bold, Italic, Underline, Type, Palette
 } from 'lucide-react';
 
 // --- SQL SCRIPT CONSTANT ---
@@ -170,6 +171,79 @@ insert into site_content (section, title, subtitle, image_url) values
 on conflict (section) do nothing;
 `;
 
+// --- HELPER: Strip HTML for previews ---
+const stripHtml = (html: string) => {
+   if (!html) return "";
+   const tmp = document.createElement("DIV");
+   tmp.innerHTML = html;
+   return tmp.textContent || tmp.innerText || "";
+};
+
+// --- RICH TEXT EDITOR COMPONENT ---
+const RichTextEditor = ({ value, onChange, className, placeholder }: { value: string, onChange: (val: string) => void, className?: string, placeholder?: string }) => {
+  const editorRef = useRef<HTMLDivElement>(null);
+
+  // Sync value to innerHTML when value changes externally
+  useEffect(() => {
+    if (editorRef.current && editorRef.current.innerHTML !== value) {
+       // Only update if significantly different to avoid cursor jumping
+       if (editorRef.current.innerHTML !== value) {
+          editorRef.current.innerHTML = value || '';
+       }
+    }
+  }, [value]);
+
+  const execCmd = (command: string, arg: string | undefined = undefined) => {
+    document.execCommand(command, false, arg);
+    if (editorRef.current) {
+        onChange(editorRef.current.innerHTML);
+    }
+  };
+
+  const handleInput = () => {
+    if (editorRef.current) {
+        onChange(editorRef.current.innerHTML);
+    }
+  };
+
+  return (
+    <div className={`border rounded bg-white text-black overflow-hidden ${className}`}>
+      <div className="flex flex-wrap items-center gap-1 bg-neutral-100 p-2 border-b">
+        <button type="button" onClick={() => execCmd('bold')} className="p-1 hover:bg-neutral-300 rounded" title="Negrito"><Bold size={16}/></button>
+        <button type="button" onClick={() => execCmd('italic')} className="p-1 hover:bg-neutral-300 rounded" title="Itálico"><Italic size={16}/></button>
+        <button type="button" onClick={() => execCmd('underline')} className="p-1 hover:bg-neutral-300 rounded" title="Sublinhado"><Underline size={16}/></button>
+        <div className="w-px h-6 bg-neutral-300 mx-1"></div>
+        <select onChange={(e) => execCmd('fontSize', e.target.value)} className="text-xs p-1 border rounded bg-white h-7">
+           <option value="3">Tamanho</option>
+           <option value="1">Pequeno</option>
+           <option value="3">Normal</option>
+           <option value="5">Grande</option>
+           <option value="7">Gigante</option>
+        </select>
+        <select onChange={(e) => execCmd('fontName', e.target.value)} className="text-xs p-1 border rounded bg-white h-7 w-24">
+           <option value="Arial">Fonte</option>
+           <option value="Inter">Inter</option>
+           <option value="Arial">Arial</option>
+           <option value="Courier New">Mono</option>
+           <option value="Georgia">Serif</option>
+        </select>
+        <div className="flex items-center gap-1 ml-2 border rounded bg-white px-1">
+           <Palette size={14} className="text-neutral-500"/>
+           <input type="color" onChange={(e) => execCmd('foreColor', e.target.value)} className="w-6 h-6 border-none bg-transparent cursor-pointer" title="Cor do Texto" />
+        </div>
+      </div>
+      <div 
+        ref={editorRef}
+        className="p-3 min-h-[100px] outline-none max-h-[400px] overflow-y-auto"
+        contentEditable
+        onInput={handleInput}
+        onBlur={handleInput}
+        data-placeholder={placeholder}
+      ></div>
+    </div>
+  );
+};
+
 // --- SETUP COMPONENT ---
 const DatabaseSetupInstructions = () => {
   const [copied, setCopied] = useState(false);
@@ -224,15 +298,38 @@ const DatabaseSetupInstructions = () => {
 
 // --- LANDING PAGE SECTIONS ---
 
-const SectionTitle = ({ title, subtitle, className }: { title: string, subtitle?: string, className?: string }) => (
-  <div className={`mb-12 text-center ${className}`}>
-    <h2 className="text-4xl md:text-5xl font-black italic text-inherit mb-2 uppercase tracking-tighter">
-      {title}<span className="text-primary">.</span>
-    </h2>
-    {subtitle && <p className="text-inherit opacity-70 max-w-2xl mx-auto">{subtitle}</p>}
-    <div className="w-24 h-1 bg-primary mx-auto mt-4"></div>
-  </div>
-);
+const SectionTitle = ({ title, subtitle, className }: { title: string, subtitle?: string, className?: string }) => {
+  // Check if title contains HTML tags
+  const isHtmlTitle = /<[a-z][\s\S]*>/i.test(title || '');
+
+  const renderTitle = () => {
+    if (!title) return null;
+    if (isHtmlTitle) {
+      return <div dangerouslySetInnerHTML={{ __html: title }} className="inline-block" />;
+    }
+    // Legacy styling for plain text
+    const words = title.split(' ');
+    if (words.length === 1) return <span className="text-inherit">{words[0]}</span>;
+    const lastWord = words.pop();
+    return (
+      <>
+        <span className="text-inherit">{words.join(' ')}</span> <span className="text-primary">{lastWord}</span>
+      </>
+    );
+  };
+
+  return (
+    <div className={`mb-12 text-center ${className}`}>
+      <h2 className="text-4xl md:text-5xl font-black italic text-inherit mb-2 uppercase tracking-tighter leading-tight">
+        {renderTitle()}
+      </h2>
+      {subtitle && (
+        <div className="text-inherit opacity-70 max-w-2xl mx-auto" dangerouslySetInnerHTML={{ __html: subtitle }}></div>
+      )}
+      <div className="w-24 h-1 bg-primary mx-auto mt-4"></div>
+    </div>
+  );
+};
 
 const DynamicSection = ({ 
   id, 
@@ -369,19 +466,6 @@ const LandingPage = ({
     window.location.href = `mailto:almavoleibol@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
-  // Helper to split title for styling (Last word colored)
-  const renderStyledTitle = (title: string) => {
-    if (!title) return null;
-    const words = title.split(' ');
-    if (words.length === 1) return <span className="text-white">{words[0]}</span>;
-    const lastWord = words.pop();
-    return (
-      <>
-        <span className="text-white">{words.join(' ')}</span> <span className="text-primary">{lastWord}</span>
-      </>
-    );
-  };
-
   const defaultHero = {
     title: 'ALMA VISEU',
     subtitle: 'Paixão. Competição. Voleibol.',
@@ -389,6 +473,16 @@ const LandingPage = ({
   };
 
   const currentHero = heroContent || defaultHero;
+
+  // Render Title for Hero (check html)
+  const isHeroHtml = /<[a-z][\s\S]*>/i.test(currentHero.title || '');
+  const renderHeroTitle = () => {
+    if (isHeroHtml) return <div dangerouslySetInnerHTML={{__html: currentHero.title}} className="inline-block"></div>;
+    const words = currentHero.title.split(' ');
+    if (words.length === 1) return <span className="text-white">{words[0]}</span>;
+    const lastWord = words.pop();
+    return <><span className="text-white">{words.join(' ')}</span> <span className="text-primary">{lastWord}</span></>;
+  };
 
   return (
     <div className="bg-black text-white">
@@ -403,11 +497,11 @@ const LandingPage = ({
         />
         <div className="relative z-20 max-w-5xl px-4 animate-fade-in-up">
           <h1 className="text-6xl md:text-9xl font-black italic tracking-tighter mb-2 leading-none uppercase">
-            {renderStyledTitle(currentHero.title)}
+            {renderHeroTitle()}
           </h1>
-          <p className="text-xl md:text-3xl text-neutral-300 font-light mb-8 tracking-widest uppercase">
-            {currentHero.subtitle}
-          </p>
+          <div className="text-xl md:text-3xl text-neutral-300 font-light mb-8 tracking-widest uppercase">
+             <div dangerouslySetInnerHTML={{ __html: currentHero.subtitle }}></div>
+          </div>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button 
               onClick={() => document.getElementById('teams')?.scrollIntoView({behavior: 'smooth'})}
@@ -465,7 +559,9 @@ const LandingPage = ({
                     {new Date(item.created_at).toLocaleDateString('pt-PT')}
                   </div>
                   <h3 className="text-xl font-bold mb-3 text-white leading-tight group-hover:text-primary transition">{item.title}</h3>
-                  <p className="text-neutral-400 text-sm line-clamp-3">{item.content}</p>
+                  <p className="text-neutral-400 text-sm line-clamp-3">
+                    {stripHtml(item.content)}
+                  </p>
                 </div>
               </div>
             ))}
@@ -542,7 +638,7 @@ const LandingPage = ({
                  <div className="p-8 md:p-12 md:w-1/2 flex flex-col justify-center">
                     <span className="text-primary font-bold uppercase tracking-widest text-sm mb-2">{t.category}</span>
                     <h3 className="text-3xl md:text-4xl font-black italic text-white mb-6">{t.name}</h3>
-                    <p className="text-neutral-400 leading-relaxed text-lg">{t.description}</p>
+                    <div className="text-neutral-400 leading-relaxed text-lg" dangerouslySetInnerHTML={{__html: t.description}}></div>
                  </div>
               </div>
             ))}
@@ -560,7 +656,7 @@ const LandingPage = ({
                 </div>
                 <div className="p-6">
                   <h3 className="font-bold text-lg text-white mb-2">{p.name}</h3>
-                  <p className="text-neutral-500 text-sm mb-4 line-clamp-2">{p.description}</p>
+                  <div className="text-neutral-500 text-sm mb-4 line-clamp-2" dangerouslySetInnerHTML={{__html: p.description}}></div>
                   <button className="w-full bg-white text-black py-3 rounded font-bold hover:bg-primary hover:text-white transition flex items-center justify-center gap-2">
                     <ShoppingBag size={18} /> Encomendar
                   </button>
@@ -587,11 +683,6 @@ const LandingPage = ({
 
       {/* GALLERY SECTION */}
       <section id="photos" className="py-4 bg-black">
-        {/* Gallery is unique, might not want dynamic text overlay in same way, but let's allow image background if desired? 
-            Currently it's a grid of photos. A background image would be covered.
-            Let's keep it simple for now, or wrap it if user really wants a header image.
-            Actually, let's use DynamicSection but without title if none provided to keep the grid clean 
-        */}
         <DynamicSection id="photos-inner" content={siteContent['photos']} defaultClass="bg-black text-white" defaultTitle="Galeria">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-1">
               {gallery.slice(0, 8).map(g => (
@@ -902,8 +993,11 @@ export default function App() {
                 {fields.map(f => (
                   <div key={f.key}>
                     <label className="block text-xs font-bold uppercase text-neutral-500 mb-1">{f.label}</label>
-                    {f.type === 'textarea' ? (
-                      <textarea className="w-full border p-2 rounded" onChange={e => setFormData({...formData, [f.key]: e.target.value})} required={f.required} rows={3}/>
+                    {f.type === 'textarea' || f.type === 'richtext' ? (
+                      <RichTextEditor 
+                        value={formData[f.key] || ''} 
+                        onChange={val => setFormData({...formData, [f.key]: val})}
+                      />
                     ) : f.type === 'image' ? (
                         <input type="file" accept="image/*" className="w-full" onChange={(e) => handleFileChange(f.key, e)} required={f.required} />
                     ) : (
@@ -926,7 +1020,9 @@ export default function App() {
                     <tr key={item.id} className="border-b hover:bg-neutral-50">
                       {fields.slice(0, 3).map(f => (
                         <td key={f.key} className="p-2 truncate max-w-[200px]">
-                            {f.type === 'image' && item[f.key] ? <img src={item[f.key]} className="h-10 w-10 object-cover rounded" /> : item[f.key]?.toString()}
+                            {f.type === 'image' && item[f.key] ? <img src={item[f.key]} className="h-10 w-10 object-cover rounded" /> : 
+                             (f.type === 'richtext' || f.type === 'textarea') ? stripHtml(item[f.key]) : item[f.key]?.toString()
+                            }
                         </td>
                       ))}
                       <td className="p-2"><button onClick={() => deleteItem(table, item.id)} className="text-red-600"><Trash size={16} /></button></td>
@@ -991,11 +1087,11 @@ export default function App() {
            <div className="space-y-4">
               <div>
                 <label className="block text-sm font-bold text-neutral-600 mb-1">Título da Secção</label>
-                <input type="text" value={title} onChange={e => setTitle(e.target.value)} className="w-full border p-2 rounded" />
+                <RichTextEditor value={title} onChange={setTitle} />
               </div>
               <div>
                 <label className="block text-sm font-bold text-neutral-600 mb-1">Subtítulo / Descrição</label>
-                <input type="text" value={subtitle} onChange={e => setSubtitle(e.target.value)} className="w-full border p-2 rounded" />
+                <RichTextEditor value={subtitle} onChange={setSubtitle} />
               </div>
               <div>
                 <label className="block text-sm font-bold text-neutral-600 mb-1">Imagem de Fundo</label>
@@ -1049,11 +1145,11 @@ export default function App() {
           <div className="flex-1 p-8 overflow-y-auto bg-neutral-50">
               <h2 className="text-3xl font-bold mb-6 capitalize text-secondary">{adminTab}</h2>
               {adminTab === 'conteudo' && <SiteContentEditor />}
-              {adminTab === 'noticias' && <AdminList title="Gerir Notícias" data={news} table="news" fields={[{key: 'title', label: 'Título', required: true}, {key: 'content', label: 'Conteúdo', type: 'textarea'}, {key: 'image_url', label: 'Imagem', type: 'image'}]} />}
+              {adminTab === 'noticias' && <AdminList title="Gerir Notícias" data={news} table="news" fields={[{key: 'title', label: 'Título', required: true}, {key: 'content', label: 'Conteúdo', type: 'richtext'}, {key: 'image_url', label: 'Imagem', type: 'image'}]} />}
               {adminTab === 'jogos' && <AdminList title="Gerir Jogos" data={matches} table="matches" fields={[{key: 'home_team', label: 'Equipa Casa', required: true}, {key: 'guest_team', label: 'Equipa Fora', required: true}, {key: 'date', label: 'Data', type: 'datetime-local', required: true}, {key: 'location', label: 'Local'}, {key: 'category', label: 'Escalão'}, {key: 'score_home', label: 'Pontos Casa', type: 'number'}, {key: 'score_guest', label: 'Pontos Fora', type: 'number'}]} />}
-              {adminTab === 'loja' && <AdminList title="Gerir Produtos" data={products} table="products" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'price', label: 'Preço', type: 'number', required: true}, {key: 'description', label: 'Descrição'}, {key: 'image_url', label: 'Imagem', type: 'image'}]} />}
+              {adminTab === 'loja' && <AdminList title="Gerir Produtos" data={products} table="products" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'price', label: 'Preço', type: 'number', required: true}, {key: 'description', label: 'Descrição', type: 'richtext'}, {key: 'image_url', label: 'Imagem', type: 'image'}]} />}
               {adminTab === 'parceiros' && <AdminList title="Gerir Parceiros" data={partners} table="partners" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'website_url', label: 'Website'}, {key: 'logo_url', label: 'Logo', type: 'image'}]} />}
-              {adminTab === 'equipas' && <AdminList title="Gerir Equipas" data={teams} table="teams" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'category', label: 'Escalão'}, {key: 'description', label: 'Descrição', type: 'textarea'}, {key: 'image_url', label: 'Foto', type: 'image'}]} />}
+              {adminTab === 'equipas' && <AdminList title="Gerir Equipas" data={teams} table="teams" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'category', label: 'Escalão'}, {key: 'description', label: 'Descrição', type: 'richtext'}, {key: 'image_url', label: 'Foto', type: 'image'}]} />}
               {adminTab === 'galeria' && <AdminList title="Gerir Fotos" data={gallery} table="gallery" fields={[{key: 'title', label: 'Título'}, {key: 'image_url', label: 'Imagem', type: 'image', required: true}]} />}
               {adminTab === 'organograma' && <AdminList title="Gerir Direção" data={organization} table="organization" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'role', label: 'Cargo', required: true}, {key: 'image_url', label: 'Foto', type: 'image'}]} />}
               {adminTab === 'definições' && <div className="p-4 bg-white rounded shadow text-neutral-500">Funcionalidades de sistema (Adicionar Admin / Reset DB) disponíveis no código original.</div>}
