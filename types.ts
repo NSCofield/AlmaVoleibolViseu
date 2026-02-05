@@ -1,3 +1,4 @@
+
 export interface NewsItem {
   id: string;
   created_at: string;
@@ -50,6 +51,14 @@ export interface OrganizationMember {
   id: string;
   name: string;
   role: string;
+  image_url: string;
+}
+
+export interface SiteContent {
+  id: string;
+  section: string; // 'hero'
+  title: string;
+  subtitle: string;
   image_url: string;
 }
 

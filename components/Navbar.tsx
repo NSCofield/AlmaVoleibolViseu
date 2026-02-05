@@ -55,14 +55,15 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentPage, isAdmin
   ];
 
   const handleNav = (id: string) => {
-    // If it's a special page (admin/login), navigate directly
-    if (id === 'admin' || id === 'login') {
+    // If it's a special page (admin/login/about), navigate directly
+    if (id === 'admin' || id === 'login' || id === 'about') {
       onNavigate(id);
+      window.scrollTo(0, 0);
       setIsOpen(false);
       return;
     }
 
-    // If we are not on the landing page (e.g. we are in admin), go to home first
+    // If we are not on the landing page (e.g. we are in admin or about page), go to home first
     if (currentPage !== 'home') {
       onNavigate('home');
       // Wait for render then scroll
@@ -105,7 +106,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentPage, isAdmin
                 <button
                   key={item.id}
                   onClick={() => handleNav(item.id)}
-                  className="px-3 py-2 rounded-md text-sm font-bold uppercase tracking-wider transition-all duration-200 text-gray-300 hover:text-primary hover:bg-white/5"
+                  className={`px-3 py-2 rounded-md text-sm font-bold uppercase tracking-wider transition-all duration-200 hover:text-primary hover:bg-white/5 ${currentPage === item.id ? 'text-primary' : 'text-gray-300'}`}
                 >
                   {item.label}
                 </button>

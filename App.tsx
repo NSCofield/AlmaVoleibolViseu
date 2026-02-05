@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from './lib/supabase';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
-import { NewsItem, Match, Product, Partner, Team, GalleryItem, OrganizationMember } from './types';
+import { NewsItem, Match, Product, Partner, Team, GalleryItem, OrganizationMember, SiteContent } from './types';
 import { 
   Loader2, Calendar, MapPin, ShoppingBag, Users, 
   Info, Camera, Mail, Trophy, ArrowRight, ChevronRight, Edit, Trash, Plus, Save, Copy, Check,
-  LogIn, UserPlus, Upload, Image as ImageIcon, Settings, Phone
+  LogIn, UserPlus, Upload, Image as ImageIcon, Settings, Phone, Home
 } from 'lucide-react';
 
 // --- SQL SCRIPT CONSTANT ---
@@ -67,6 +67,14 @@ create table if not exists organization (
   created_at timestamptz default now()
 );
 
+create table if not exists site_content (
+  id uuid default gen_random_uuid() primary key,
+  section text unique,
+  title text,
+  subtitle text,
+  image_url text
+);
+
 -- 2. Habilitar Row Level Security (Segurança)
 alter table news enable row level security;
 alter table matches enable row level security;
@@ -75,6 +83,7 @@ alter table partners enable row level security;
 alter table teams enable row level security;
 alter table gallery enable row level security;
 alter table organization enable row level security;
+alter table site_content enable row level security;
 
 -- 3. Políticas de Acesso (Leitura Pública, Escrita Apenas Autenticados)
 -- (Recriar políticas para garantir consistência)
@@ -113,6 +122,11 @@ create policy "Public read organization" on organization for select using (true)
 drop policy if exists "Auth all organization" on organization;
 create policy "Auth all organization" on organization for all using (auth.role() = 'authenticated');
 
+drop policy if exists "Public read site_content" on site_content;
+create policy "Public read site_content" on site_content for select using (true);
+drop policy if exists "Auth all site_content" on site_content;
+create policy "Auth all site_content" on site_content for all using (auth.role() = 'authenticated');
+
 
 -- 4. Storage (Imagens)
 -- Garante que o bucket 'images' existe
@@ -143,6 +157,10 @@ where not exists (select 1 from organization where role = 'Vice-Presidente');
 insert into organization (name, role, image_url)
 select 'Pedro Martins', 'Diretor Desportivo', null
 where not exists (select 1 from organization where role = 'Diretor Desportivo');
+
+insert into site_content (section, title, subtitle, image_url)
+values ('hero', 'ALMA VISEU', 'Paixão. Competição. Voleibol.', 'https://picsum.photos/1920/1080?grayscale&blur=2')
+on conflict (section) do nothing;
 `;
 
 // --- SETUP COMPONENT ---
@@ -167,7 +185,7 @@ const DatabaseSetupInstructions = () => {
             Atualização necessária.
           </p>
           <p className="text-neutral-400">
-            Adicionámos o <strong>Organograma</strong>. Para que funcione, tens de atualizar a base de dados.
+            Adicionámos o <strong>Editor da Página Inicial</strong>. Para que funcione, tens de atualizar a base de dados.
             Copia o código SQL abaixo e executa-o no <a href="https://supabase.com/dashboard/project/_/sql" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-bold">Editor SQL do Supabase</a>.
           </p>
         </div>
@@ -209,6 +227,61 @@ const SectionTitle = ({ title, subtitle }: { title: string, subtitle?: string })
   </div>
 );
 
+// --- ABOUT PAGE COMPONENT ---
+const AboutPage = ({ teams, organization }: { teams: Team[], organization: OrganizationMember[] }) => {
+  return (
+    <div className="bg-neutral-900 min-h-screen text-white py-12 px-4 animate-fade-in">
+        <div className="max-w-4xl mx-auto text-center">
+          <SectionTitle title="Quem Somos" subtitle="A nossa história e a nossa gente." />
+          
+          <div className="mb-16">
+             <h2 className="text-4xl font-black italic text-primary mb-8">ALMA VISEU</h2>
+             <p className="text-xl text-neutral-300 leading-relaxed mb-8">
+                O <strong>ALMA Viseu</strong> é mais do que um clube de voleibol; é uma comunidade dedicada ao desenvolvimento desportivo e pessoal dos jovens de Viseu. 
+                Fundado com a missão de revitalizar o voleibol na região centro, o clube tem crescido sustentadamente, promovendo valores como o respeito, a disciplina e o espírito de sacrifício.
+              </p>
+              <div className="grid grid-cols-3 gap-4 text-center">
+                 <div className="p-4 bg-black rounded-lg border border-neutral-800">
+                    <div className="text-3xl font-bold text-primary mb-1">2022</div>
+                    <div className="text-xs text-neutral-500 uppercase">Fundação</div>
+                 </div>
+                 <div className="p-4 bg-black rounded-lg border border-neutral-800">
+                    <div className="text-3xl font-bold text-primary mb-1">{teams.length}</div>
+                    <div className="text-xs text-neutral-500 uppercase">Equipas</div>
+                 </div>
+                 <div className="p-4 bg-black rounded-lg border border-neutral-800">
+                    <div className="text-3xl font-bold text-primary mb-1">100+</div>
+                    <div className="text-xs text-neutral-500 uppercase">Atletas</div>
+                 </div>
+              </div>
+          </div>
+
+          {/* ORGANIZATIONAL CHART (ORGANOGRAMA) */}
+          {organization.length > 0 && (
+            <div className="border-t border-neutral-800 pt-16">
+              <h3 className="text-2xl font-bold text-white mb-12 uppercase tracking-widest">Estrutura Diretiva</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-8 gap-y-12">
+                 {organization.map(member => (
+                    <div key={member.id} className="flex flex-col items-center group">
+                       <div className="w-40 h-40 rounded-full overflow-hidden border-4 border-neutral-800 group-hover:border-primary transition duration-300 mb-6 shadow-xl relative">
+                          <img 
+                            src={member.image_url || `https://ui-avatars.com/api/?name=${member.name}&background=random`} 
+                            alt={member.name}
+                            className="w-full h-full object-cover"
+                          />
+                       </div>
+                       <h4 className="text-xl font-bold text-white mb-1">{member.name}</h4>
+                       <p className="text-primary text-sm uppercase font-bold tracking-wider">{member.role}</p>
+                    </div>
+                 ))}
+              </div>
+            </div>
+          )}
+        </div>
+    </div>
+  );
+};
+
 const LandingPage = ({ 
   onNavigate, 
   news, 
@@ -217,7 +290,7 @@ const LandingPage = ({
   partners, 
   teams, 
   gallery,
-  organization
+  heroContent
 }: { 
   onNavigate: (p: string) => void, 
   news: NewsItem[], 
@@ -226,7 +299,8 @@ const LandingPage = ({
   partners: Partner[],
   teams: Team[],
   gallery: GalleryItem[],
-  organization: OrganizationMember[]
+  organization?: OrganizationMember[],
+  heroContent: SiteContent | null
 }) => {
   const nextMatch = matches
     .filter(m => new Date(m.date) >= new Date())
@@ -249,6 +323,27 @@ const LandingPage = ({
     window.location.href = `mailto:almavoleibol@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
+  // Helper to split title for styling (Last word colored)
+  const renderStyledTitle = (title: string) => {
+    if (!title) return null;
+    const words = title.split(' ');
+    if (words.length === 1) return <span className="text-white">{words[0]}</span>;
+    const lastWord = words.pop();
+    return (
+      <>
+        <span className="text-white">{words.join(' ')}</span> <span className="text-primary">{lastWord}</span>
+      </>
+    );
+  };
+
+  const defaultHero = {
+    title: 'ALMA VISEU',
+    subtitle: 'Paixão. Competição. Voleibol.',
+    image_url: 'https://picsum.photos/1920/1080?grayscale&blur=2'
+  };
+
+  const currentHero = heroContent || defaultHero;
+
   return (
     <div className="bg-black text-white">
       
@@ -256,16 +351,16 @@ const LandingPage = ({
       <section id="home" className="relative h-screen min-h-[600px] flex items-center justify-center text-center overflow-hidden">
         <div className="absolute inset-0 bg-black/60 z-10"></div>
         <img 
-          src="https://picsum.photos/1920/1080?grayscale&blur=2" 
+          src={currentHero.image_url} 
           alt="Voleibol" 
           className="absolute inset-0 w-full h-full object-cover opacity-50"
         />
         <div className="relative z-20 max-w-5xl px-4 animate-fade-in-up">
-          <h1 className="text-6xl md:text-9xl font-black text-white italic tracking-tighter mb-2 leading-none">
-            ALMA <span className="text-primary">VISEU</span>
+          <h1 className="text-6xl md:text-9xl font-black italic tracking-tighter mb-2 leading-none uppercase">
+            {renderStyledTitle(currentHero.title)}
           </h1>
           <p className="text-xl md:text-3xl text-neutral-300 font-light mb-8 tracking-widest uppercase">
-            Paixão. Competição. Voleibol.
+            {currentHero.subtitle}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button 
@@ -454,53 +549,7 @@ const LandingPage = ({
         </div>
       </section>
 
-      {/* ABOUT SECTION - Dark Gray */}
-      <section id="about" className="py-24 px-4 bg-neutral-900">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-4xl font-black italic text-primary mb-8">ALMA VISEU</h2>
-          <p className="text-xl text-neutral-300 leading-relaxed mb-8">
-            O <strong>ALMA Viseu</strong> é mais do que um clube de voleibol; é uma comunidade dedicada ao desenvolvimento desportivo e pessoal dos jovens de Viseu. 
-            Fundado com a missão de revitalizar o voleibol na região centro, o clube tem crescido sustentadamente, promovendo valores como o respeito, a disciplina e o espírito de sacrifício.
-          </p>
-          <div className="grid grid-cols-3 gap-4 text-center mb-16">
-             <div className="p-4 bg-black rounded-lg border border-neutral-800">
-                <div className="text-3xl font-bold text-primary mb-1">2022</div>
-                <div className="text-xs text-neutral-500 uppercase">Fundação</div>
-             </div>
-             <div className="p-4 bg-black rounded-lg border border-neutral-800">
-                <div className="text-3xl font-bold text-primary mb-1">{teams.length}</div>
-                <div className="text-xs text-neutral-500 uppercase">Equipas</div>
-             </div>
-             <div className="p-4 bg-black rounded-lg border border-neutral-800">
-                <div className="text-3xl font-bold text-primary mb-1">100+</div>
-                <div className="text-xs text-neutral-500 uppercase">Atletas</div>
-             </div>
-          </div>
-
-          {/* ORGANIZATIONAL CHART (ORGANOGRAMA) */}
-          {organization.length > 0 && (
-            <div className="border-t border-neutral-800 pt-16">
-              <h3 className="text-2xl font-bold text-white mb-12 uppercase tracking-widest">Estrutura Diretiva</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-8 gap-y-12">
-                 {organization.map(member => (
-                    <div key={member.id} className="flex flex-col items-center group">
-                       <div className="w-40 h-40 rounded-full overflow-hidden border-4 border-neutral-800 group-hover:border-primary transition duration-300 mb-6 shadow-xl relative">
-                          <img 
-                            src={member.image_url || `https://ui-avatars.com/api/?name=${member.name}&background=random`} 
-                            alt={member.name}
-                            className="w-full h-full object-cover"
-                          />
-                       </div>
-                       <h4 className="text-xl font-bold text-white mb-1">{member.name}</h4>
-                       <p className="text-primary text-sm uppercase font-bold tracking-wider">{member.role}</p>
-                    </div>
-                 ))}
-              </div>
-            </div>
-          )}
-
-        </div>
-      </section>
+      {/* REMOVED ABOUT SECTION FROM HERE */}
 
       {/* GALLERY SECTION - Black */}
       <section id="photos" className="py-4 bg-black">
@@ -617,6 +666,8 @@ export default function App() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [gallery, setGallery] = useState<GalleryItem[]>([]);
   const [organization, setOrganization] = useState<OrganizationMember[]>([]);
+  const [heroContent, setHeroContent] = useState<SiteContent | null>(null);
+  
   const [loading, setLoading] = useState(true);
   const [setupNeeded, setSetupNeeded] = useState(false);
 
@@ -627,7 +678,7 @@ export default function App() {
   const [isSignUp, setIsSignUp] = useState(false); 
 
   // Admin Tab State
-  const [adminTab, setAdminTab] = useState('noticias');
+  const [adminTab, setAdminTab] = useState('inicio');
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -655,10 +706,11 @@ export default function App() {
         supabase.from('partners').select('*'),
         supabase.from('teams').select('*'),
         supabase.from('gallery').select('*'),
-        supabase.from('organization').select('*').order('created_at', { ascending: true })
+        supabase.from('organization').select('*').order('created_at', { ascending: true }),
+        supabase.from('site_content').select('*').eq('section', 'hero').single()
       ]);
 
-      const [newsRes, matchesRes, prodRes, partRes, teamRes, galRes, orgRes] = responses;
+      const [newsRes, matchesRes, prodRes, partRes, teamRes, galRes, orgRes, heroRes] = responses;
       const missingTableError = responses.find(r => r.error && r.error.code === '42P01');
       if (missingTableError) {
         setSetupNeeded(true);
@@ -673,6 +725,7 @@ export default function App() {
       if (teamRes.data) setTeams(teamRes.data);
       if (galRes.data) setGallery(galRes.data);
       if (orgRes.data) setOrganization(orgRes.data);
+      if (heroRes.data) setHeroContent(heroRes.data);
 
     } catch (e) {
       console.error("Error fetching data:", e);
@@ -714,9 +767,37 @@ export default function App() {
     else fetchAllData();
   };
 
+  const updateHeroContent = async (title: string, subtitle: string, imageFile: File | null) => {
+    try {
+      let imageUrl = heroContent?.image_url;
+
+      if (imageFile) {
+         const fileExt = imageFile.name.split('.').pop();
+         const fileName = `hero_${Date.now()}.${fileExt}`;
+         const { error: uploadError } = await supabase.storage.from('images').upload(fileName, imageFile);
+         if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
+         const { data: { publicUrl } } = supabase.storage.from('images').getPublicUrl(fileName);
+         imageUrl = publicUrl;
+      }
+
+      const { error } = await supabase.from('site_content').upsert({
+        section: 'hero',
+        title,
+        subtitle,
+        image_url: imageUrl
+      }, { onConflict: 'section' });
+
+      if (error) throw error;
+      alert("Conteúdo da página inicial atualizado!");
+      fetchAllData();
+    } catch (e: any) {
+      alert("Erro ao atualizar: " + e.message);
+    }
+  };
+
   // --- ADMIN RENDERER ---
-  // (Moved inside App to access state/methods easily without massive prop drilling)
   const renderAdmin = () => {
+    
     // Admin Helper to Add Items
     const AdminList = ({ title, data, table, fields }: { title: string, data: any[], table: string, fields: any[] }) => {
         const [isAdding, setIsAdding] = useState(false);
@@ -811,6 +892,51 @@ export default function App() {
         );
     };
 
+    // Specific component for Home Page Editing
+    const HeroEditor = () => {
+      const [title, setTitle] = useState(heroContent?.title || 'ALMA VISEU');
+      const [subtitle, setSubtitle] = useState(heroContent?.subtitle || 'Paixão. Competição. Voleibol.');
+      const [file, setFile] = useState<File | null>(null);
+      const [preview, setPreview] = useState<string | null>(heroContent?.image_url || null);
+      const [uploading, setUploading] = useState(false);
+
+      const handleSave = async () => {
+        setUploading(true);
+        await updateHeroContent(title, subtitle, file);
+        setUploading(false);
+      };
+
+      return (
+        <div className="bg-white p-6 rounded shadow text-black max-w-2xl">
+           <h3 className="text-xl font-bold mb-6 border-b pb-2">Editar Página Inicial (Hero)</h3>
+           <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-neutral-600 mb-1">Título Principal</label>
+                <input type="text" value={title} onChange={e => setTitle(e.target.value)} className="w-full border p-2 rounded" />
+                <p className="text-xs text-neutral-400 mt-1">A última palavra ficará a laranja.</p>
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-neutral-600 mb-1">Subtítulo</label>
+                <input type="text" value={subtitle} onChange={e => setSubtitle(e.target.value)} className="w-full border p-2 rounded" />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-neutral-600 mb-1">Imagem de Fundo</label>
+                <input type="file" accept="image/*" onChange={(e) => {
+                  if (e.target.files?.[0]) {
+                    setFile(e.target.files[0]);
+                    setPreview(URL.createObjectURL(e.target.files[0]));
+                  }
+                }} className="w-full mb-2" />
+                {preview && <img src={preview} alt="Preview" className="w-full h-48 object-cover rounded border" />}
+              </div>
+              <button onClick={handleSave} disabled={uploading} className="bg-primary text-white px-6 py-2 rounded font-bold hover:bg-orange-700 transition">
+                {uploading ? 'A guardar...' : 'Guardar Alterações'}
+              </button>
+           </div>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen bg-neutral-100 text-black">
         <nav className="bg-black text-white p-4 flex justify-between items-center border-b-4 border-primary">
@@ -823,6 +949,9 @@ export default function App() {
         <div className="flex flex-col md:flex-row h-[calc(100vh-64px)]">
           <div className="w-full md:w-64 bg-white border-r p-4 flex flex-col justify-between">
             <div className="space-y-2">
+              <button onClick={() => setAdminTab('inicio')} className={`w-full text-left p-2 rounded capitalize font-medium ${adminTab === 'inicio' ? 'bg-primary text-white' : 'hover:bg-neutral-100 text-neutral-700'}`}>
+                  <span className="flex items-center gap-2"><Home size={16}/> Início</span>
+              </button>
               {['noticias', 'jogos', 'loja', 'parceiros', 'equipas', 'galeria', 'organograma', 'definições'].map(tab => (
                 <button key={tab} onClick={() => setAdminTab(tab)} className={`w-full text-left p-2 rounded capitalize font-medium ${adminTab === tab ? 'bg-primary text-white' : 'hover:bg-neutral-100 text-neutral-700'}`}>
                   {tab === 'definições' ? <span className="flex items-center gap-2"><Settings size={16}/> Definições</span> : tab}
@@ -835,6 +964,7 @@ export default function App() {
           </div>
           <div className="flex-1 p-8 overflow-y-auto bg-neutral-50">
               <h2 className="text-3xl font-bold mb-6 capitalize text-secondary">{adminTab}</h2>
+              {adminTab === 'inicio' && <HeroEditor />}
               {adminTab === 'noticias' && <AdminList title="Gerir Notícias" data={news} table="news" fields={[{key: 'title', label: 'Título', required: true}, {key: 'content', label: 'Conteúdo', type: 'textarea'}, {key: 'image_url', label: 'Imagem', type: 'image'}]} />}
               {adminTab === 'jogos' && <AdminList title="Gerir Jogos" data={matches} table="matches" fields={[{key: 'home_team', label: 'Equipa Casa', required: true}, {key: 'guest_team', label: 'Equipa Fora', required: true}, {key: 'date', label: 'Data', type: 'datetime-local', required: true}, {key: 'location', label: 'Local'}, {key: 'category', label: 'Escalão'}, {key: 'score_home', label: 'Pontos Casa', type: 'number'}, {key: 'score_guest', label: 'Pontos Fora', type: 'number'}]} />}
               {adminTab === 'loja' && <AdminList title="Gerir Produtos" data={products} table="products" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'price', label: 'Preço', type: 'number', required: true}, {key: 'description', label: 'Descrição'}, {key: 'image_url', label: 'Imagem', type: 'image'}]} />}
@@ -854,6 +984,8 @@ export default function App() {
     if (setupNeeded) return <DatabaseSetupInstructions />;
 
     if (currentPage === 'admin' && session) return renderAdmin();
+
+    if (currentPage === 'about') return <AboutPage teams={teams} organization={organization} />;
 
     if (currentPage === 'login') {
       return (
@@ -884,7 +1016,7 @@ export default function App() {
     }
 
     // LANDING PAGE (DEFAULT)
-    return <LandingPage onNavigate={setCurrentPage} news={news} matches={matches} products={products} partners={partners} teams={teams} gallery={gallery} organization={organization} />;
+    return <LandingPage onNavigate={setCurrentPage} news={news} matches={matches} products={products} partners={partners} teams={teams} gallery={gallery} organization={organization} heroContent={heroContent} />;
   };
 
   return (
