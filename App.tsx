@@ -6,7 +6,7 @@ import { NewsItem, Match, Product, Partner, Team, GalleryItem, OrganizationMembe
 import { 
   Loader2, Calendar, MapPin, ShoppingBag, Users, 
   Info, Camera, Mail, Trophy, ArrowRight, ChevronRight, Edit, Trash, Plus, Save, Copy, Check,
-  LogIn, UserPlus, Upload, Image as ImageIcon, Settings, Phone, Home
+  LogIn, UserPlus, Upload, Image as ImageIcon, Settings, Phone, Home, Layout, FileText
 } from 'lucide-react';
 
 // --- SQL SCRIPT CONSTANT ---
@@ -158,8 +158,15 @@ insert into organization (name, role, image_url)
 select 'Pedro Martins', 'Diretor Desportivo', null
 where not exists (select 1 from organization where role = 'Diretor Desportivo');
 
-insert into site_content (section, title, subtitle, image_url)
-values ('hero', 'ALMA VISEU', 'Paixão. Competição. Voleibol.', 'https://picsum.photos/1920/1080?grayscale&blur=2')
+insert into site_content (section, title, subtitle, image_url) values 
+('hero', 'ALMA VISEU', 'Paixão. Competição. Voleibol.', 'https://picsum.photos/1920/1080?grayscale&blur=2'),
+('news', 'Últimas Notícias', 'Fica a par de todas as novidades.', null),
+('calendar', 'Calendário & Resultados', 'Acompanha a nossa jornada jornada a jornada.', null),
+('teams', 'As Nossas Equipas', 'Conhece os nossos atletas.', null),
+('shop', 'Loja Oficial', 'Veste a camisola.', null),
+('partners', 'Os Nossos Parceiros', 'Quem nos apoia.', null),
+('photos', 'Galeria', 'Os melhores momentos.', null),
+('contacts', 'Contactos', 'Fale connosco.', null)
 on conflict (section) do nothing;
 `;
 
@@ -185,7 +192,7 @@ const DatabaseSetupInstructions = () => {
             Atualização necessária.
           </p>
           <p className="text-neutral-400">
-            Adicionámos o <strong>Editor da Página Inicial</strong>. Para que funcione, tens de atualizar a base de dados.
+            Adicionámos o <strong>Editor de Conteúdo</strong>. Para que funcione corretamente para todas as secções, tens de atualizar a base de dados.
             Copia o código SQL abaixo e executa-o no <a href="https://supabase.com/dashboard/project/_/sql" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-bold">Editor SQL do Supabase</a>.
           </p>
         </div>
@@ -217,15 +224,52 @@ const DatabaseSetupInstructions = () => {
 
 // --- LANDING PAGE SECTIONS ---
 
-const SectionTitle = ({ title, subtitle }: { title: string, subtitle?: string }) => (
-  <div className="mb-12 text-center">
-    <h2 className="text-4xl md:text-5xl font-black italic text-white mb-2 uppercase tracking-tighter">
+const SectionTitle = ({ title, subtitle, className }: { title: string, subtitle?: string, className?: string }) => (
+  <div className={`mb-12 text-center ${className}`}>
+    <h2 className="text-4xl md:text-5xl font-black italic text-inherit mb-2 uppercase tracking-tighter">
       {title}<span className="text-primary">.</span>
     </h2>
-    {subtitle && <p className="text-neutral-400 max-w-2xl mx-auto">{subtitle}</p>}
+    {subtitle && <p className="text-inherit opacity-70 max-w-2xl mx-auto">{subtitle}</p>}
     <div className="w-24 h-1 bg-primary mx-auto mt-4"></div>
   </div>
 );
+
+const DynamicSection = ({ 
+  id, 
+  content, 
+  defaultClass, 
+  children,
+  defaultTitle,
+  defaultSubtitle
+}: { 
+  id: string, 
+  content: SiteContent | undefined, 
+  defaultClass: string, 
+  children?: React.ReactNode,
+  defaultTitle?: string,
+  defaultSubtitle?: string
+}) => {
+  const bgImage = content?.image_url;
+  const title = content?.title || defaultTitle;
+  const subtitle = content?.subtitle || defaultSubtitle;
+
+  return (
+    <section id={id} className={`relative py-24 px-4 ${!bgImage ? defaultClass : 'bg-black text-white'} overflow-hidden`}>
+      {bgImage && (
+        <div className="absolute inset-0 z-0">
+          <img src={bgImage} className="w-full h-full object-cover opacity-30" alt="Background" />
+          <div className="absolute inset-0 bg-black/60"></div>
+        </div>
+      )}
+      <div className="relative z-10 max-w-7xl mx-auto">
+        {(title) && (
+           <SectionTitle title={title} subtitle={subtitle} className={!bgImage && defaultClass.includes('text-black') ? 'text-black' : 'text-white'} />
+        )}
+        {children}
+      </div>
+    </section>
+  );
+};
 
 // --- ABOUT PAGE COMPONENT ---
 const AboutPage = ({ teams, organization }: { teams: Team[], organization: OrganizationMember[] }) => {
@@ -290,7 +334,8 @@ const LandingPage = ({
   partners, 
   teams, 
   gallery,
-  heroContent
+  heroContent,
+  siteContent
 }: { 
   onNavigate: (p: string) => void, 
   news: NewsItem[], 
@@ -300,7 +345,8 @@ const LandingPage = ({
   teams: Team[],
   gallery: GalleryItem[],
   organization?: OrganizationMember[],
-  heroContent: SiteContent | null
+  heroContent: SiteContent | null,
+  siteContent: Record<string, SiteContent>
 }) => {
   const nextMatch = matches
     .filter(m => new Date(m.date) >= new Date())
@@ -406,10 +452,8 @@ const LandingPage = ({
         </div>
       )}
 
-      {/* NEWS SECTION - Dark Gray */}
-      <section id="news" className="py-24 px-4 bg-neutral-900">
-        <div className="max-w-7xl mx-auto">
-          <SectionTitle title="Últimas Notícias" />
+      {/* NEWS SECTION */}
+      <DynamicSection id="news" content={siteContent['news']} defaultClass="bg-neutral-900 text-white" defaultTitle="Últimas Notícias">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {news.slice(0, 3).map(item => (
               <div key={item.id} className="bg-neutral-800 rounded-xl overflow-hidden group hover:ring-2 hover:ring-primary transition-all duration-300">
@@ -427,16 +471,16 @@ const LandingPage = ({
             ))}
             {news.length === 0 && <p className="text-neutral-500 col-span-3 text-center">A aguardar novidades...</p>}
           </div>
-        </div>
-      </section>
+      </DynamicSection>
 
-      {/* CALENDAR SECTION - Black */}
-      <section id="calendar" className="py-24 px-4 bg-black relative">
-        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20"></div>
-        <div className="max-w-7xl mx-auto relative z-10">
-          <SectionTitle title="Calendário & Resultados" subtitle="Acompanha a nossa jornada jornada a jornada." />
+      {/* CALENDAR SECTION */}
+      <DynamicSection id="calendar" content={siteContent['calendar']} defaultClass="bg-black text-white" defaultTitle="Calendário & Resultados" defaultSubtitle="Acompanha a nossa jornada jornada a jornada.">
+          {/* Carbon Fiber Overlay if no custom bg */}
+          {!siteContent['calendar']?.image_url && (
+             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20 pointer-events-none"></div>
+          )}
           
-          <div className="grid md:grid-cols-2 gap-12">
+          <div className="grid md:grid-cols-2 gap-12 relative z-10">
             <div>
               <h3 className="text-2xl font-bold mb-8 flex items-center gap-3 text-white">
                 <span className="w-8 h-8 bg-primary rounded flex items-center justify-center text-black"><Calendar size={18}/></span> 
@@ -484,13 +528,10 @@ const LandingPage = ({
               </div>
             </div>
           </div>
-        </div>
-      </section>
+      </DynamicSection>
 
-      {/* TEAMS SECTION - Dark Gray */}
-      <section id="teams" className="py-24 px-4 bg-neutral-900">
-        <div className="max-w-7xl mx-auto">
-          <SectionTitle title="As Nossas Equipas" />
+      {/* TEAMS SECTION */}
+      <DynamicSection id="teams" content={siteContent['teams']} defaultClass="bg-neutral-900 text-white" defaultTitle="As Nossas Equipas">
           <div className="space-y-16">
             {teams.map((t, idx) => (
               <div key={t.id} className={`flex flex-col md:flex-row gap-0 rounded-2xl overflow-hidden bg-neutral-800 shadow-2xl ${idx % 2 === 1 ? 'md:flex-row-reverse' : ''}`}>
@@ -506,13 +547,10 @@ const LandingPage = ({
               </div>
             ))}
           </div>
-        </div>
-      </section>
+      </DynamicSection>
 
-      {/* SHOP SECTION - Black */}
-      <section id="shop" className="py-24 px-4 bg-black">
-        <div className="max-w-7xl mx-auto">
-          <SectionTitle title="Loja Oficial" />
+      {/* SHOP SECTION */}
+      <DynamicSection id="shop" content={siteContent['shop']} defaultClass="bg-black text-white" defaultTitle="Loja Oficial">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             {products.map(p => (
               <div key={p.id} className="bg-neutral-900 rounded-xl overflow-hidden group border border-neutral-800 hover:border-primary transition duration-300">
@@ -531,13 +569,10 @@ const LandingPage = ({
             ))}
             {products.length === 0 && <p className="col-span-4 text-center text-neutral-500">Loja brevemente...</p>}
           </div>
-        </div>
-      </section>
+      </DynamicSection>
 
-      {/* PARTNERS SECTION - Light Gray */}
-      <section id="partners" className="py-20 px-4 bg-neutral-100 text-black">
-        <div className="max-w-7xl mx-auto text-center">
-          <h2 className="text-3xl font-black italic mb-12 uppercase tracking-tighter text-black">Os Nossos Parceiros</h2>
+      {/* PARTNERS SECTION */}
+      <DynamicSection id="partners" content={siteContent['partners']} defaultClass="bg-neutral-100 text-black" defaultTitle="Os Nossos Parceiros">
           <div className="flex flex-wrap justify-center gap-12 items-center grayscale hover:grayscale-0 transition-all duration-500">
             {partners.map(p => (
                <a href={p.website_url} target="_blank" rel="noreferrer" key={p.id} className="block w-40 md:w-56 opacity-60 hover:opacity-100 transition">
@@ -546,57 +581,62 @@ const LandingPage = ({
             ))}
             {partners.length === 0 && <p className="text-neutral-400">Seja o nosso primeiro parceiro!</p>}
           </div>
-        </div>
-      </section>
+      </DynamicSection>
 
       {/* REMOVED ABOUT SECTION FROM HERE */}
 
-      {/* GALLERY SECTION - Black */}
+      {/* GALLERY SECTION */}
       <section id="photos" className="py-4 bg-black">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-1">
-          {gallery.slice(0, 8).map(g => (
-            <div key={g.id} className="relative group overflow-hidden aspect-square">
-               <img src={g.image_url || `https://picsum.photos/seed/${g.id}/500/500`} className="w-full h-full object-cover transition duration-700 group-hover:scale-110 opacity-70 group-hover:opacity-100" />
-               <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition duration-300 flex items-center justify-center">
-                  <p className="text-white font-bold tracking-widest uppercase text-sm border-2 border-primary px-4 py-2">{g.title}</p>
-               </div>
+        {/* Gallery is unique, might not want dynamic text overlay in same way, but let's allow image background if desired? 
+            Currently it's a grid of photos. A background image would be covered.
+            Let's keep it simple for now, or wrap it if user really wants a header image.
+            Actually, let's use DynamicSection but without title if none provided to keep the grid clean 
+        */}
+        <DynamicSection id="photos-inner" content={siteContent['photos']} defaultClass="bg-black text-white" defaultTitle="Galeria">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-1">
+              {gallery.slice(0, 8).map(g => (
+                <div key={g.id} className="relative group overflow-hidden aspect-square">
+                  <img src={g.image_url || `https://picsum.photos/seed/${g.id}/500/500`} className="w-full h-full object-cover transition duration-700 group-hover:scale-110 opacity-70 group-hover:opacity-100" />
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition duration-300 flex items-center justify-center">
+                      <p className="text-white font-bold tracking-widest uppercase text-sm border-2 border-primary px-4 py-2">{g.title}</p>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-        {gallery.length > 0 && (
-           <div className="text-center py-8">
-              <button className="text-primary hover:text-white transition font-bold uppercase text-sm tracking-widest flex items-center justify-center gap-2 mx-auto">
-                 Ver Galeria Completa <ArrowRight size={16}/>
-              </button>
-           </div>
-        )}
+            {gallery.length > 0 && (
+              <div className="text-center py-8">
+                  <button className="text-primary hover:text-white transition font-bold uppercase text-sm tracking-widest flex items-center justify-center gap-2 mx-auto">
+                    Ver Galeria Completa <ArrowRight size={16}/>
+                  </button>
+              </div>
+            )}
+        </DynamicSection>
       </section>
 
-      {/* CONTACT SECTION - Dark Gray */}
-      <section id="contacts" className="py-24 px-4 bg-neutral-900">
+      {/* CONTACT SECTION */}
+      <DynamicSection id="contacts" content={siteContent['contacts']} defaultClass="bg-neutral-900 text-white" defaultTitle="Contactos">
         <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-12">
            <div>
-              <SectionTitle title="Contactos" />
               <div className="space-y-8 text-lg">
                  <div className="flex items-start gap-6">
                     <MapPin className="text-primary mt-1" size={32} />
                     <div>
-                       <h4 className="font-bold text-white">Localização</h4>
-                       <p className="text-neutral-400">Escola Secundária Alves Marins<br/>Avenida Infante Dom Henrique, 3514-507, Viseu</p>
+                       <h4 className="font-bold text-inherit">Localização</h4>
+                       <p className="opacity-70">Escola Secundária Alves Marins<br/>Avenida Infante Dom Henrique, 3514-507, Viseu</p>
                     </div>
                  </div>
                  <div className="flex items-start gap-6">
                     <Mail className="text-primary mt-1" size={32} />
                     <div>
-                       <h4 className="font-bold text-white">Email</h4>
-                       <a href="mailto:almavoleibolviseu@gmail.com" className="text-neutral-400 hover:text-white transition">almavoleibolviseu@gmail.com</a>
+                       <h4 className="font-bold text-inherit">Email</h4>
+                       <a href="mailto:almavoleibolviseu@gmail.com" className="opacity-70 hover:opacity-100 transition">almavoleibolviseu@gmail.com</a>
                     </div>
                  </div>
                  <div className="flex items-start gap-6">
                     <Phone className="text-primary mt-1" size={32} />
                     <div>
-                       <h4 className="font-bold text-white">Telefone</h4>
-                       <div className="text-neutral-400 flex flex-col">
+                       <h4 className="font-bold text-inherit">Telefone</h4>
+                       <div className="opacity-70 flex flex-col">
                          <span>+351 919 264 188</span>
                          <span>+351 925 332 607</span>
                        </div>
@@ -645,7 +685,7 @@ const LandingPage = ({
               </form>
            </div>
         </div>
-      </section>
+      </DynamicSection>
 
     </div>
   );
@@ -666,7 +706,7 @@ export default function App() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [gallery, setGallery] = useState<GalleryItem[]>([]);
   const [organization, setOrganization] = useState<OrganizationMember[]>([]);
-  const [heroContent, setHeroContent] = useState<SiteContent | null>(null);
+  const [siteContent, setSiteContent] = useState<Record<string, SiteContent>>({});
   
   const [loading, setLoading] = useState(true);
   const [setupNeeded, setSetupNeeded] = useState(false);
@@ -678,7 +718,7 @@ export default function App() {
   const [isSignUp, setIsSignUp] = useState(false); 
 
   // Admin Tab State
-  const [adminTab, setAdminTab] = useState('inicio');
+  const [adminTab, setAdminTab] = useState('conteudo');
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -707,10 +747,10 @@ export default function App() {
         supabase.from('teams').select('*'),
         supabase.from('gallery').select('*'),
         supabase.from('organization').select('*').order('created_at', { ascending: true }),
-        supabase.from('site_content').select('*').eq('section', 'hero').single()
+        supabase.from('site_content').select('*')
       ]);
 
-      const [newsRes, matchesRes, prodRes, partRes, teamRes, galRes, orgRes, heroRes] = responses;
+      const [newsRes, matchesRes, prodRes, partRes, teamRes, galRes, orgRes, contentRes] = responses;
       const missingTableError = responses.find(r => r.error && r.error.code === '42P01');
       if (missingTableError) {
         setSetupNeeded(true);
@@ -725,7 +765,14 @@ export default function App() {
       if (teamRes.data) setTeams(teamRes.data);
       if (galRes.data) setGallery(galRes.data);
       if (orgRes.data) setOrganization(orgRes.data);
-      if (heroRes.data) setHeroContent(heroRes.data);
+      
+      if (contentRes.data) {
+        const contentMap: Record<string, SiteContent> = {};
+        contentRes.data.forEach((item: SiteContent) => {
+          contentMap[item.section] = item;
+        });
+        setSiteContent(contentMap);
+      }
 
     } catch (e) {
       console.error("Error fetching data:", e);
@@ -767,13 +814,13 @@ export default function App() {
     else fetchAllData();
   };
 
-  const updateHeroContent = async (title: string, subtitle: string, imageFile: File | null) => {
+  const updateSectionContent = async (section: string, title: string, subtitle: string, imageFile: File | null) => {
     try {
-      let imageUrl = heroContent?.image_url;
+      let imageUrl = siteContent[section]?.image_url;
 
       if (imageFile) {
          const fileExt = imageFile.name.split('.').pop();
-         const fileName = `hero_${Date.now()}.${fileExt}`;
+         const fileName = `${section}_${Date.now()}.${fileExt}`;
          const { error: uploadError } = await supabase.storage.from('images').upload(fileName, imageFile);
          if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
          const { data: { publicUrl } } = supabase.storage.from('images').getPublicUrl(fileName);
@@ -781,14 +828,14 @@ export default function App() {
       }
 
       const { error } = await supabase.from('site_content').upsert({
-        section: 'hero',
+        section,
         title,
         subtitle,
         image_url: imageUrl
       }, { onConflict: 'section' });
 
       if (error) throw error;
-      alert("Conteúdo da página inicial atualizado!");
+      alert("Conteúdo atualizado!");
       fetchAllData();
     } catch (e: any) {
       alert("Erro ao atualizar: " + e.message);
@@ -892,31 +939,62 @@ export default function App() {
         );
     };
 
-    // Specific component for Home Page Editing
-    const HeroEditor = () => {
-      const [title, setTitle] = useState(heroContent?.title || 'ALMA VISEU');
-      const [subtitle, setSubtitle] = useState(heroContent?.subtitle || 'Paixão. Competição. Voleibol.');
+    // Generic Content Editor
+    const SiteContentEditor = () => {
+      const sections = [
+        { id: 'hero', label: 'Início (Hero)' },
+        { id: 'news', label: 'Notícias' },
+        { id: 'calendar', label: 'Calendário' },
+        { id: 'teams', label: 'Equipas' },
+        { id: 'shop', label: 'Loja' },
+        { id: 'partners', label: 'Parceiros' },
+        { id: 'photos', label: 'Galeria' },
+        { id: 'contacts', label: 'Contactos' },
+      ];
+      
+      const [selectedSection, setSelectedSection] = useState('hero');
+      const [title, setTitle] = useState('');
+      const [subtitle, setSubtitle] = useState('');
       const [file, setFile] = useState<File | null>(null);
-      const [preview, setPreview] = useState<string | null>(heroContent?.image_url || null);
+      const [preview, setPreview] = useState<string | null>(null);
       const [uploading, setUploading] = useState(false);
+
+      useEffect(() => {
+         const current = siteContent[selectedSection];
+         setTitle(current?.title || '');
+         setSubtitle(current?.subtitle || '');
+         setPreview(current?.image_url || null);
+         setFile(null);
+      }, [selectedSection, siteContent]);
 
       const handleSave = async () => {
         setUploading(true);
-        await updateHeroContent(title, subtitle, file);
+        await updateSectionContent(selectedSection, title, subtitle, file);
         setUploading(false);
       };
 
       return (
         <div className="bg-white p-6 rounded shadow text-black max-w-2xl">
-           <h3 className="text-xl font-bold mb-6 border-b pb-2">Editar Página Inicial (Hero)</h3>
+           <h3 className="text-xl font-bold mb-6 border-b pb-2">Editar Conteúdo do Site</h3>
+           
+           <div className="mb-6">
+             <label className="block text-sm font-bold text-neutral-600 mb-1">Escolher Secção</label>
+             <select 
+               value={selectedSection} 
+               onChange={(e) => setSelectedSection(e.target.value)}
+               className="w-full border p-2 rounded bg-neutral-50 font-bold"
+             >
+               {sections.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+             </select>
+           </div>
+
            <div className="space-y-4">
               <div>
-                <label className="block text-sm font-bold text-neutral-600 mb-1">Título Principal</label>
+                <label className="block text-sm font-bold text-neutral-600 mb-1">Título da Secção</label>
                 <input type="text" value={title} onChange={e => setTitle(e.target.value)} className="w-full border p-2 rounded" />
-                <p className="text-xs text-neutral-400 mt-1">A última palavra ficará a laranja.</p>
               </div>
               <div>
-                <label className="block text-sm font-bold text-neutral-600 mb-1">Subtítulo</label>
+                <label className="block text-sm font-bold text-neutral-600 mb-1">Subtítulo / Descrição</label>
                 <input type="text" value={subtitle} onChange={e => setSubtitle(e.target.value)} className="w-full border p-2 rounded" />
               </div>
               <div>
@@ -927,7 +1005,13 @@ export default function App() {
                     setPreview(URL.createObjectURL(e.target.files[0]));
                   }
                 }} className="w-full mb-2" />
-                {preview && <img src={preview} alt="Preview" className="w-full h-48 object-cover rounded border" />}
+                {preview && (
+                  <div className="relative h-48 rounded overflow-hidden border">
+                     <img src={preview} alt="Preview" className="w-full h-full object-cover" />
+                     {file && <div className="absolute top-2 right-2 bg-yellow-500 text-black text-xs font-bold px-2 py-1 rounded">Nova Imagem</div>}
+                  </div>
+                )}
+                <p className="text-xs text-neutral-400 mt-1">Se não escolheres imagem, será usada a cor padrão.</p>
               </div>
               <button onClick={handleSave} disabled={uploading} className="bg-primary text-white px-6 py-2 rounded font-bold hover:bg-orange-700 transition">
                 {uploading ? 'A guardar...' : 'Guardar Alterações'}
@@ -949,8 +1033,8 @@ export default function App() {
         <div className="flex flex-col md:flex-row h-[calc(100vh-64px)]">
           <div className="w-full md:w-64 bg-white border-r p-4 flex flex-col justify-between">
             <div className="space-y-2">
-              <button onClick={() => setAdminTab('inicio')} className={`w-full text-left p-2 rounded capitalize font-medium ${adminTab === 'inicio' ? 'bg-primary text-white' : 'hover:bg-neutral-100 text-neutral-700'}`}>
-                  <span className="flex items-center gap-2"><Home size={16}/> Início</span>
+              <button onClick={() => setAdminTab('conteudo')} className={`w-full text-left p-2 rounded capitalize font-medium ${adminTab === 'conteudo' ? 'bg-primary text-white' : 'hover:bg-neutral-100 text-neutral-700'}`}>
+                  <span className="flex items-center gap-2"><Layout size={16}/> Conteúdos</span>
               </button>
               {['noticias', 'jogos', 'loja', 'parceiros', 'equipas', 'galeria', 'organograma', 'definições'].map(tab => (
                 <button key={tab} onClick={() => setAdminTab(tab)} className={`w-full text-left p-2 rounded capitalize font-medium ${adminTab === tab ? 'bg-primary text-white' : 'hover:bg-neutral-100 text-neutral-700'}`}>
@@ -964,7 +1048,7 @@ export default function App() {
           </div>
           <div className="flex-1 p-8 overflow-y-auto bg-neutral-50">
               <h2 className="text-3xl font-bold mb-6 capitalize text-secondary">{adminTab}</h2>
-              {adminTab === 'inicio' && <HeroEditor />}
+              {adminTab === 'conteudo' && <SiteContentEditor />}
               {adminTab === 'noticias' && <AdminList title="Gerir Notícias" data={news} table="news" fields={[{key: 'title', label: 'Título', required: true}, {key: 'content', label: 'Conteúdo', type: 'textarea'}, {key: 'image_url', label: 'Imagem', type: 'image'}]} />}
               {adminTab === 'jogos' && <AdminList title="Gerir Jogos" data={matches} table="matches" fields={[{key: 'home_team', label: 'Equipa Casa', required: true}, {key: 'guest_team', label: 'Equipa Fora', required: true}, {key: 'date', label: 'Data', type: 'datetime-local', required: true}, {key: 'location', label: 'Local'}, {key: 'category', label: 'Escalão'}, {key: 'score_home', label: 'Pontos Casa', type: 'number'}, {key: 'score_guest', label: 'Pontos Fora', type: 'number'}]} />}
               {adminTab === 'loja' && <AdminList title="Gerir Produtos" data={products} table="products" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'price', label: 'Preço', type: 'number', required: true}, {key: 'description', label: 'Descrição'}, {key: 'image_url', label: 'Imagem', type: 'image'}]} />}
@@ -1016,7 +1100,7 @@ export default function App() {
     }
 
     // LANDING PAGE (DEFAULT)
-    return <LandingPage onNavigate={setCurrentPage} news={news} matches={matches} products={products} partners={partners} teams={teams} gallery={gallery} organization={organization} heroContent={heroContent} />;
+    return <LandingPage onNavigate={setCurrentPage} news={news} matches={matches} products={products} partners={partners} teams={teams} gallery={gallery} organization={organization} heroContent={siteContent['hero']} siteContent={siteContent} />;
   };
 
   return (
