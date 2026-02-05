@@ -916,16 +916,24 @@ export default function App() {
             </nav>
             <div className="flex flex-col md:flex-row h-[calc(100vh-64px)]">
               {/* Sidebar */}
-              <div className="w-full md:w-64 bg-white border-r p-4 space-y-2">
-                 {['noticias', 'jogos', 'loja', 'parceiros', 'equipas', 'galeria', 'definições'].map(tab => (
-                   <button 
-                     key={tab}
-                     onClick={() => setAdminTab(tab)}
-                     className={`w-full text-left p-2 rounded capitalize ${adminTab === tab ? 'bg-primary text-white' : 'hover:bg-gray-100'}`}
-                   >
-                     {tab === 'definições' ? <span className="flex items-center gap-2"><Settings size={16}/> Definições</span> : tab}
-                   </button>
-                 ))}
+              <div className="w-full md:w-64 bg-white border-r p-4 flex flex-col justify-between">
+                <div className="space-y-2">
+                  {['noticias', 'jogos', 'loja', 'parceiros', 'equipas', 'galeria', 'definições'].map(tab => (
+                    <button 
+                      key={tab}
+                      onClick={() => setAdminTab(tab)}
+                      className={`w-full text-left p-2 rounded capitalize ${adminTab === tab ? 'bg-primary text-white' : 'hover:bg-gray-100'}`}
+                    >
+                      {tab === 'definições' ? <span className="flex items-center gap-2"><Settings size={16}/> Definições</span> : tab}
+                    </button>
+                  ))}
+                </div>
+                <button 
+                  onClick={() => setCurrentPage('home')} 
+                  className="mt-4 w-full text-left p-2 rounded hover:bg-gray-100 flex items-center gap-2 text-gray-600 font-bold border-t pt-4"
+                >
+                    <ArrowRight size={16} className="rotate-180" /> Voltar ao Site
+                </button>
               </div>
               {/* Content */}
               <div className="flex-1 p-8 overflow-y-auto">
