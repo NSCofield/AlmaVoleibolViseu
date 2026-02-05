@@ -681,9 +681,6 @@ export default function App() {
                 </form>
 
                 <div className="mt-6 text-center border-t pt-4">
-                  <button onClick={() => { setIsSignUp(!isSignUp); setLoginError(''); }} className="text-sm text-primary hover:text-orange-700 font-semibold mb-4 block w-full">
-                    {isSignUp ? 'Já tem conta? Entrar' : 'Não tem conta? Registar Admin'}
-                  </button>
                   <button onClick={() => setCurrentPage('home')} className="text-xs text-gray-400 hover:text-gray-600">
                     Voltar ao site
                   </button>
