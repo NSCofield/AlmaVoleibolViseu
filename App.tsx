@@ -129,6 +129,45 @@ const RichTextEditor = ({ value, onChange, className, placeholder }: { value: st
   );
 };
 
+// --- CAROUSEL COMPONENT ---
+const SectionCarousel = ({ children, className }: { children: React.ReactNode, className?: string }) => {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const scroll = (direction: 'left' | 'right') => {
+    if (scrollRef.current) {
+      const { current } = scrollRef;
+      const scrollAmount = current.clientWidth * 0.8;
+      current.scrollBy({ left: direction === 'left' ? -scrollAmount : scrollAmount, behavior: 'smooth' });
+    }
+  };
+
+  return (
+    <div className={`relative group/carousel ${className}`}>
+      <button 
+        onClick={() => scroll('left')} 
+        className="absolute left-0 top-1/2 -translate-y-1/2 z-20 bg-black/50 hover:bg-primary text-white p-3 rounded-full opacity-0 group-hover/carousel:opacity-100 transition-opacity backdrop-blur-sm -ml-4 md:ml-0"
+      >
+        <ChevronLeft size={24} />
+      </button>
+      
+      <div 
+        ref={scrollRef} 
+        className="flex overflow-x-auto gap-6 pb-8 snap-x snap-mandatory scrollbar-hide px-2"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+      >
+        {children}
+      </div>
+
+      <button 
+        onClick={() => scroll('right')} 
+        className="absolute right-0 top-1/2 -translate-y-1/2 z-20 bg-black/50 hover:bg-primary text-white p-3 rounded-full opacity-0 group-hover/carousel:opacity-100 transition-opacity backdrop-blur-sm -mr-4 md:mr-0"
+      >
+        <ChevronRight size={24} />
+      </button>
+    </div>
+  );
+};
+
 // --- IMAGE MODAL / CAROUSEL COMPONENT ---
 interface ModalItem {
   id: string;
@@ -509,12 +548,12 @@ const LandingPage = ({
 
       {/* NEWS SECTION */}
       <DynamicSection id="news" content={siteContent['news']} defaultClass="bg-neutral-900 text-white" defaultTitle="Últimas Notícias">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {news.slice(0, 3).map((item, index) => (
+          <SectionCarousel>
+            {news.map((item, index) => (
               <div 
                 key={item.id} 
-                className="bg-neutral-800 rounded-xl overflow-hidden group hover:ring-2 hover:ring-primary transition-all duration-300 cursor-pointer"
-                onClick={() => openModal(news.slice(0, 3), index, 'news')}
+                className="bg-neutral-800 rounded-xl overflow-hidden group hover:ring-2 hover:ring-primary transition-all duration-300 cursor-pointer snap-center min-w-[300px] md:min-w-[400px]"
+                onClick={() => openModal(news, index, 'news')}
               >
                 <div className="h-56 overflow-hidden">
                   <img src={item.image_url || `https://picsum.photos/seed/${item.id}/400/250`} alt={item.title} className="w-full h-full object-cover transition duration-500 group-hover:scale-110 opacity-80 group-hover:opacity-100" />
@@ -523,18 +562,18 @@ const LandingPage = ({
                   <div className="absolute -top-4 right-6 bg-primary text-white text-xs font-bold px-3 py-1 rounded shadow-lg">
                     {new Date(item.created_at).toLocaleDateString('pt-PT')}
                   </div>
-                  <h3 className="text-xl font-bold mb-3 text-white leading-tight group-hover:text-primary transition">{item.title}</h3>
+                  <h3 className="text-xl font-bold mb-3 text-white leading-tight group-hover:text-primary transition line-clamp-2">{item.title}</h3>
                   <p className="text-neutral-400 text-sm line-clamp-3">
                     {stripHtml(item.content)}
                   </p>
                 </div>
               </div>
             ))}
-            {news.length === 0 && <p className="text-neutral-500 col-span-3 text-center">A aguardar novidades...</p>}
-          </div>
+            {news.length === 0 && <p className="text-neutral-500 text-center w-full">A aguardar novidades...</p>}
+          </SectionCarousel>
       </DynamicSection>
 
-      {/* CALENDAR SECTION */}
+      {/* CALENDAR SECTION (Kept as grid for clear comparison) */}
       <DynamicSection id="calendar" content={siteContent['calendar']} defaultClass="bg-black text-white" defaultTitle="Calendário & Resultados" defaultSubtitle="Acompanha a nossa jornada jornada a jornada.">
           {!siteContent['calendar']?.image_url && (
              <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20 pointer-events-none"></div>
@@ -590,92 +629,89 @@ const LandingPage = ({
 
       {/* TEAMS SECTION */}
       <DynamicSection id="teams" content={siteContent['teams']} defaultClass="bg-neutral-900 text-white" defaultTitle="As Nossas Equipas">
-          <div className="space-y-16">
+          <SectionCarousel>
             {teams.map((t, idx) => (
               <div 
                 key={t.id} 
-                className={`flex flex-col md:flex-row gap-0 rounded-2xl overflow-hidden bg-neutral-800 shadow-2xl ${idx % 2 === 1 ? 'md:flex-row-reverse' : ''} cursor-pointer hover:ring-2 hover:ring-primary transition-all duration-300`}
+                className="flex-shrink-0 snap-center rounded-2xl overflow-hidden bg-neutral-800 shadow-2xl cursor-pointer hover:ring-2 hover:ring-primary transition-all duration-300 w-[90vw] md:w-[600px] flex flex-col"
                 onClick={() => openModal(teams, idx, 'team')}
               >
-                 <div className="md:w-1/2 relative min-h-[300px]">
+                 <div className="relative h-[300px]">
                    <img src={t.image_url || `https://picsum.photos/seed/${t.id}/800/600`} className="absolute inset-0 w-full h-full object-cover" />
-                   <div className="absolute inset-0 bg-gradient-to-t from-neutral-800 md:bg-none opacity-80 md:opacity-0"></div>
+                   <div className="absolute inset-0 bg-gradient-to-t from-neutral-800 opacity-80"></div>
                  </div>
-                 <div className="p-8 md:p-12 md:w-1/2 flex flex-col justify-center">
+                 <div className="p-8 flex flex-col justify-center flex-grow">
                     <span className="text-primary font-bold uppercase tracking-widest text-sm mb-2">{t.category}</span>
-                    <h3 className="text-3xl md:text-4xl font-black italic text-white mb-6">{t.name}</h3>
-                    <div className="text-neutral-400 leading-relaxed text-lg line-clamp-4" dangerouslySetInnerHTML={{__html: t.description}}></div>
+                    <h3 className="text-3xl font-black italic text-white mb-4">{t.name}</h3>
+                    <div className="text-neutral-400 leading-relaxed text-sm line-clamp-3" dangerouslySetInnerHTML={{__html: t.description}}></div>
                     <div className="mt-4 text-primary text-sm font-bold flex items-center gap-2">
                        Ver mais <ChevronRight size={16} />
                     </div>
                  </div>
               </div>
             ))}
-          </div>
+            {teams.length === 0 && <p className="text-neutral-500 text-center w-full">Equipas a carregar...</p>}
+          </SectionCarousel>
       </DynamicSection>
 
       {/* SHOP SECTION (SMALLER CARDS) */}
       <DynamicSection id="shop" content={siteContent['shop']} defaultClass="bg-black text-white" defaultTitle="Loja Oficial">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <SectionCarousel>
             {products.map((p, index) => (
               <div 
                 key={p.id} 
-                className="bg-neutral-900 rounded-xl overflow-hidden group border border-neutral-800 hover:border-primary transition duration-300 cursor-pointer"
+                className="bg-neutral-900 rounded-xl overflow-hidden group border border-neutral-800 hover:border-primary transition duration-300 cursor-pointer snap-center min-w-[220px] max-w-[220px]"
                 onClick={() => openModal(products, index, 'product')}
               >
-                <div className="h-48 overflow-hidden relative p-3 bg-neutral-800">
+                <div className="h-40 overflow-hidden relative p-3 bg-neutral-800">
                   <img src={p.image_url || `https://picsum.photos/seed/${p.id}/400/400`} alt={p.name} className="w-full h-full object-cover rounded-lg transition transform group-hover:scale-105" />
                   <div className="absolute top-3 right-3 bg-primary text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg">{p.price.toFixed(2)} €</div>
                 </div>
-                <div className="p-4">
-                  <h3 className="font-bold text-base text-white mb-1">{p.name}</h3>
-                  <div className="text-neutral-500 text-xs mb-3 line-clamp-2" dangerouslySetInnerHTML={{__html: p.description}}></div>
-                  <button className="w-full bg-white text-black py-2 rounded font-bold text-sm hover:bg-primary hover:text-white transition flex items-center justify-center gap-2">
-                    <ShoppingBag size={14} /> Encomendar
+                <div className="p-3">
+                  <h3 className="font-bold text-sm text-white mb-1 truncate">{p.name}</h3>
+                  <div className="text-neutral-500 text-[10px] mb-3 line-clamp-2" dangerouslySetInnerHTML={{__html: p.description}}></div>
+                  <button className="w-full bg-white text-black py-2 rounded font-bold text-xs hover:bg-primary hover:text-white transition flex items-center justify-center gap-2">
+                    <ShoppingBag size={12} /> Encomendar
                   </button>
                 </div>
               </div>
             ))}
-            {products.length === 0 && <p className="col-span-4 text-center text-neutral-500">Loja brevemente...</p>}
-          </div>
+            {products.length === 0 && <p className="text-neutral-500 text-center w-full">Loja brevemente...</p>}
+          </SectionCarousel>
       </DynamicSection>
 
       {/* PARTNERS SECTION */}
       <DynamicSection id="partners" content={siteContent['partners']} defaultClass="bg-neutral-100 text-black" defaultTitle="Os Nossos Parceiros" padding="py-12">
-          <div className="flex flex-wrap justify-center gap-8 items-center grayscale hover:grayscale-0 transition-all duration-500">
-            {partners.map(p => (
-               <a href={p.website_url} target="_blank" rel="noreferrer" key={p.id} className="block w-24 md:w-32 opacity-60 hover:opacity-100 transition">
-                 <img src={p.logo_url || `https://picsum.photos/seed/${p.id}/200/100`} alt={p.name} className="w-full object-contain" />
-               </a>
-            ))}
-            {partners.length === 0 && <p className="text-neutral-400">Seja o nosso primeiro parceiro!</p>}
-          </div>
+          <SectionCarousel>
+             <div className="flex gap-12 items-center px-4">
+                {partners.map(p => (
+                   <a href={p.website_url} target="_blank" rel="noreferrer" key={p.id} className="block w-32 md:w-48 grayscale hover:grayscale-0 transition opacity-60 hover:opacity-100 flex-shrink-0 snap-center">
+                     <img src={p.logo_url || `https://picsum.photos/seed/${p.id}/200/100`} alt={p.name} className="w-full object-contain" />
+                   </a>
+                ))}
+             </div>
+             {partners.length === 0 && <p className="text-neutral-400 text-center w-full">Seja o nosso primeiro parceiro!</p>}
+          </SectionCarousel>
       </DynamicSection>
 
       {/* GALLERY SECTION */}
       <section id="photos" className="py-4 bg-black">
         <DynamicSection id="photos-inner" content={siteContent['photos']} defaultClass="bg-black text-white" defaultTitle="Galeria">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-1">
-              {gallery.slice(0, 8).map((g, index) => (
+            <SectionCarousel>
+              {gallery.map((g, index) => (
                 <div 
                   key={g.id} 
-                  className="relative group overflow-hidden aspect-square cursor-pointer"
-                  onClick={() => openModal(gallery.slice(0, 8), index, 'gallery')}
+                  className="relative group overflow-hidden aspect-square cursor-pointer snap-center min-w-[200px] md:min-w-[300px] rounded-lg"
+                  onClick={() => openModal(gallery, index, 'gallery')}
                 >
                   <img src={g.image_url || `https://picsum.photos/seed/${g.id}/500/500`} className="w-full h-full object-cover transition duration-700 group-hover:scale-110 opacity-70 group-hover:opacity-100" />
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition duration-300 flex items-center justify-center">
-                      <p className="text-white font-bold tracking-widest uppercase text-sm border-2 border-primary px-4 py-2">{g.title}</p>
+                      <p className="text-white font-bold tracking-widest uppercase text-sm border-2 border-primary px-4 py-2 text-center">{g.title}</p>
                   </div>
                 </div>
               ))}
-            </div>
-            {gallery.length > 0 && (
-              <div className="text-center py-8">
-                  <button className="text-primary hover:text-white transition font-bold uppercase text-sm tracking-widest flex items-center justify-center gap-2 mx-auto">
-                    Ver Galeria Completa <ArrowRight size={16}/>
-                  </button>
-              </div>
-            )}
+              {gallery.length === 0 && <p className="text-neutral-500 text-center w-full">Galeria vazia.</p>}
+            </SectionCarousel>
         </DynamicSection>
       </section>
 
