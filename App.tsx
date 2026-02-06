@@ -602,7 +602,7 @@ const LandingPage = ({
   partners, 
   teams, 
   gallery,
-  heroContent,
+  heroContent, 
   siteContent
 }: { 
   onNavigate: (p: string) => void, 
@@ -719,12 +719,7 @@ const LandingPage = ({
              <div dangerouslySetInnerHTML={{ __html: currentHero.subtitle }}></div>
           </div>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button 
-              onClick={() => document.getElementById('teams')?.scrollIntoView({behavior: 'smooth'})}
-              className="bg-primary text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-orange-700 transition transform hover:scale-105 border-2 border-primary"
-            >
-              Junta-te à Equipa
-            </button>
+            {/* REMOVED: Junta-te à Equipa button */}
             <button 
               onClick={() => document.getElementById('calendar')?.scrollIntoView({behavior: 'smooth'})}
               className="bg-transparent text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-white hover:text-black transition transform hover:scale-105 border-2 border-white"
