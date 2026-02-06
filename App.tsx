@@ -402,21 +402,23 @@ const DynamicSection = ({
   defaultClass, 
   children,
   defaultTitle,
-  defaultSubtitle
+  defaultSubtitle,
+  padding = "py-24"
 }: { 
   id: string, 
   content: SiteContent | undefined, 
   defaultClass: string, 
   children?: React.ReactNode,
   defaultTitle?: string,
-  defaultSubtitle?: string
+  defaultSubtitle?: string,
+  padding?: string
 }) => {
   const bgImage = content?.image_url;
   const title = content?.title || defaultTitle;
   const subtitle = content?.subtitle || defaultSubtitle;
 
   return (
-    <section id={id} className={`relative py-24 px-4 ${!bgImage ? defaultClass : 'bg-black text-white'} overflow-hidden`}>
+    <section id={id} className={`relative ${padding} px-4 ${!bgImage ? defaultClass : 'bg-black text-white'} overflow-hidden`}>
       {bgImage && (
         <div className="absolute inset-0 z-0">
           <img src={bgImage} className="w-full h-full object-cover opacity-30" alt="Background" />
@@ -733,10 +735,16 @@ const LandingPage = ({
       </DynamicSection>
 
       {/* PARTNERS SECTION */}
-      <DynamicSection id="partners" content={siteContent['partners']} defaultClass="bg-neutral-100 text-black" defaultTitle="Os Nossos Parceiros">
-          <div className="flex flex-wrap justify-center gap-12 items-center grayscale hover:grayscale-0 transition-all duration-500">
+      <DynamicSection 
+        id="partners" 
+        content={siteContent['partners']} 
+        defaultClass="bg-neutral-100 text-black" 
+        defaultTitle="Os Nossos Parceiros"
+        padding="py-12"
+      >
+          <div className="flex flex-wrap justify-center gap-8 items-center grayscale hover:grayscale-0 transition-all duration-500">
             {partners.map(p => (
-               <a href={p.website_url} target="_blank" rel="noreferrer" key={p.id} className="block w-40 md:w-56 opacity-60 hover:opacity-100 transition">
+               <a href={p.website_url} target="_blank" rel="noreferrer" key={p.id} className="block w-24 md:w-32 opacity-60 hover:opacity-100 transition">
                  <img src={p.logo_url || `https://picsum.photos/seed/${p.id}/200/100`} alt={p.name} className="w-full object-contain" />
                </a>
             ))}
