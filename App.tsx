@@ -7,7 +7,8 @@ import {
   Loader2, Calendar, MapPin, ShoppingBag, Users, 
   Info, Camera, Mail, Trophy, ArrowRight, ChevronRight, Edit, Trash, Plus, Save, Copy, Check,
   LogIn, UserPlus, Upload, Image as ImageIcon, Settings, Phone, Home, Layout, FileText,
-  Bold, Italic, Underline, Type, Palette, AlignLeft, AlignCenter, AlignRight, List, ListOrdered, Highlighter
+  Bold, Italic, Underline, Type, Palette, AlignLeft, AlignCenter, AlignRight, List, ListOrdered, Highlighter,
+  X, ChevronLeft
 } from 'lucide-react';
 
 // --- SQL SCRIPT CONSTANT ---
@@ -309,6 +310,109 @@ const RichTextEditor = ({ value, onChange, className, placeholder }: { value: st
   );
 };
 
+// --- IMAGE MODAL / CAROUSEL COMPONENT ---
+interface ModalItem {
+  id: string;
+  image: string;
+  title: string;
+  subtitle?: string;
+  description?: string;
+}
+
+const ImageModal = ({ items, initialIndex, isOpen, onClose }: { items: ModalItem[], initialIndex: number, isOpen: boolean, onClose: () => void }) => {
+  const [currentIndex, setCurrentIndex] = useState(initialIndex);
+
+  useEffect(() => {
+    setCurrentIndex(initialIndex);
+  }, [initialIndex]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!isOpen) return;
+      if (e.key === 'Escape') onClose();
+      if (e.key === 'ArrowRight') next();
+      if (e.key === 'ArrowLeft') prev();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, currentIndex]); // eslint-disable-line
+
+  if (!isOpen || items.length === 0) return null;
+
+  const currentItem = items[currentIndex];
+
+  const next = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setCurrentIndex((prev) => (prev + 1) % items.length);
+  };
+
+  const prev = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setCurrentIndex((prev) => (prev - 1 + items.length) % items.length);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
+      <button onClick={onClose} className="absolute top-4 right-4 text-white hover:text-primary z-50">
+        <X size={32} />
+      </button>
+
+      {/* Navigation Buttons */}
+      {items.length > 1 && (
+        <>
+          <button onClick={prev} className="absolute left-2 md:left-8 top-1/2 -translate-y-1/2 text-white/50 hover:text-white hover:bg-black/50 p-2 rounded-full transition z-50">
+             <ChevronLeft size={48} />
+          </button>
+          <button onClick={next} className="absolute right-2 md:right-8 top-1/2 -translate-y-1/2 text-white/50 hover:text-white hover:bg-black/50 p-2 rounded-full transition z-50">
+             <ChevronRight size={48} />
+          </button>
+        </>
+      )}
+
+      {/* Content Container */}
+      <div 
+        className="w-full h-full max-w-7xl flex flex-col md:flex-row bg-black overflow-hidden rounded-xl shadow-2xl border border-neutral-800" 
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Image Area */}
+        <div className="flex-1 bg-black flex items-center justify-center relative h-[50vh] md:h-full">
+           <img 
+              src={currentItem.image} 
+              alt={currentItem.title} 
+              className="max-w-full max-h-full object-contain"
+           />
+        </div>
+
+        {/* Text Area */}
+        <div className="w-full md:w-[400px] bg-neutral-900 border-l border-neutral-800 flex flex-col h-[50vh] md:h-full">
+           <div className="p-6 md:p-8 overflow-y-auto custom-scrollbar">
+              {currentItem.subtitle && (
+                <div className="text-primary font-bold uppercase tracking-widest text-xs mb-2">
+                   {currentItem.subtitle}
+                </div>
+              )}
+              <h2 className="text-2xl md:text-3xl font-black italic text-white mb-6 leading-tight">
+                 {currentItem.title}
+              </h2>
+              {currentItem.description && (
+                <div 
+                  className="text-white leading-relaxed text-sm md:text-base space-y-4"
+                  dangerouslySetInnerHTML={{__html: currentItem.description}}
+                ></div>
+              )}
+           </div>
+           
+           {/* Footer of modal */}
+           <div className="mt-auto p-4 border-t border-neutral-800 text-xs text-neutral-500 flex justify-between">
+              <span>ALMA Viseu</span>
+              <span>{currentIndex + 1} / {items.length}</span>
+           </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // --- SETUP COMPONENT ---
 const DatabaseSetupInstructions = () => {
   const [copied, setCopied] = useState(false);
@@ -526,6 +630,51 @@ const LandingPage = ({
     message: ''
   });
 
+  // Modal State
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalItems, setModalItems] = useState<ModalItem[]>([]);
+  const [modalStartIndex, setModalStartIndex] = useState(0);
+
+  const openModal = (items: any[], index: number, type: 'news' | 'product' | 'team' | 'gallery') => {
+    let formattedItems: ModalItem[] = [];
+
+    if (type === 'news') {
+      formattedItems = items.map((i: NewsItem) => ({
+        id: i.id,
+        image: i.image_url || `https://picsum.photos/seed/${i.id}/800/600`,
+        title: i.title,
+        subtitle: new Date(i.created_at).toLocaleDateString('pt-PT'),
+        description: i.content
+      }));
+    } else if (type === 'product') {
+      formattedItems = items.map((i: Product) => ({
+        id: i.id,
+        image: i.image_url || `https://picsum.photos/seed/${i.id}/800/600`,
+        title: i.name,
+        subtitle: `${i.price.toFixed(2)} €`,
+        description: i.description
+      }));
+    } else if (type === 'team') {
+      formattedItems = items.map((i: Team) => ({
+        id: i.id,
+        image: i.image_url || `https://picsum.photos/seed/${i.id}/800/600`,
+        title: i.name,
+        subtitle: i.category,
+        description: i.description
+      }));
+    } else if (type === 'gallery') {
+      formattedItems = items.map((i: GalleryItem) => ({
+        id: i.id,
+        image: i.image_url || `https://picsum.photos/seed/${i.id}/800/600`,
+        title: i.title || 'Sem título'
+      }));
+    }
+
+    setModalItems(formattedItems);
+    setModalStartIndex(index);
+    setModalOpen(true);
+  };
+
   const handleContactSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const { name, email, subject, message } = formData;
@@ -616,8 +765,12 @@ const LandingPage = ({
       {/* NEWS SECTION */}
       <DynamicSection id="news" content={siteContent['news']} defaultClass="bg-neutral-900 text-white" defaultTitle="Últimas Notícias">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {news.slice(0, 3).map(item => (
-              <div key={item.id} className="bg-neutral-800 rounded-xl overflow-hidden group hover:ring-2 hover:ring-primary transition-all duration-300">
+            {news.slice(0, 3).map((item, index) => (
+              <div 
+                key={item.id} 
+                className="bg-neutral-800 rounded-xl overflow-hidden group hover:ring-2 hover:ring-primary transition-all duration-300 cursor-pointer"
+                onClick={() => openModal(news.slice(0, 3), index, 'news')}
+              >
                 <div className="h-56 overflow-hidden">
                   <img src={item.image_url || `https://picsum.photos/seed/${item.id}/400/250`} alt={item.title} className="w-full h-full object-cover transition duration-500 group-hover:scale-110 opacity-80 group-hover:opacity-100" />
                 </div>
@@ -697,7 +850,11 @@ const LandingPage = ({
       <DynamicSection id="teams" content={siteContent['teams']} defaultClass="bg-neutral-900 text-white" defaultTitle="As Nossas Equipas">
           <div className="space-y-16">
             {teams.map((t, idx) => (
-              <div key={t.id} className={`flex flex-col md:flex-row gap-0 rounded-2xl overflow-hidden bg-neutral-800 shadow-2xl ${idx % 2 === 1 ? 'md:flex-row-reverse' : ''}`}>
+              <div 
+                key={t.id} 
+                className={`flex flex-col md:flex-row gap-0 rounded-2xl overflow-hidden bg-neutral-800 shadow-2xl ${idx % 2 === 1 ? 'md:flex-row-reverse' : ''} cursor-pointer hover:ring-2 hover:ring-primary transition-all duration-300`}
+                onClick={() => openModal(teams, idx, 'team')}
+              >
                  <div className="md:w-1/2 relative min-h-[300px]">
                    <img src={t.image_url || `https://picsum.photos/seed/${t.id}/800/600`} className="absolute inset-0 w-full h-full object-cover" />
                    <div className="absolute inset-0 bg-gradient-to-t from-neutral-800 md:bg-none opacity-80 md:opacity-0"></div>
@@ -705,7 +862,10 @@ const LandingPage = ({
                  <div className="p-8 md:p-12 md:w-1/2 flex flex-col justify-center">
                     <span className="text-primary font-bold uppercase tracking-widest text-sm mb-2">{t.category}</span>
                     <h3 className="text-3xl md:text-4xl font-black italic text-white mb-6">{t.name}</h3>
-                    <div className="text-neutral-400 leading-relaxed text-lg" dangerouslySetInnerHTML={{__html: t.description}}></div>
+                    <div className="text-neutral-400 leading-relaxed text-lg line-clamp-4" dangerouslySetInnerHTML={{__html: t.description}}></div>
+                    <div className="mt-4 text-primary text-sm font-bold flex items-center gap-2">
+                       Ver mais <ChevronRight size={16} />
+                    </div>
                  </div>
               </div>
             ))}
@@ -715,8 +875,12 @@ const LandingPage = ({
       {/* SHOP SECTION */}
       <DynamicSection id="shop" content={siteContent['shop']} defaultClass="bg-black text-white" defaultTitle="Loja Oficial">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {products.map(p => (
-              <div key={p.id} className="bg-neutral-900 rounded-xl overflow-hidden group border border-neutral-800 hover:border-primary transition duration-300">
+            {products.map((p, index) => (
+              <div 
+                key={p.id} 
+                className="bg-neutral-900 rounded-xl overflow-hidden group border border-neutral-800 hover:border-primary transition duration-300 cursor-pointer"
+                onClick={() => openModal(products, index, 'product')}
+              >
                 <div className="h-64 overflow-hidden relative p-4 bg-neutral-800">
                   <img src={p.image_url || `https://picsum.photos/seed/${p.id}/400/400`} alt={p.name} className="w-full h-full object-cover rounded-lg transition transform group-hover:scale-105" />
                   <div className="absolute top-6 right-6 bg-primary text-white font-bold px-3 py-1 rounded-full shadow-lg">{p.price.toFixed(2)} €</div>
@@ -758,8 +922,12 @@ const LandingPage = ({
       <section id="photos" className="py-4 bg-black">
         <DynamicSection id="photos-inner" content={siteContent['photos']} defaultClass="bg-black text-white" defaultTitle="Galeria">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-1">
-              {gallery.slice(0, 8).map(g => (
-                <div key={g.id} className="relative group overflow-hidden aspect-square">
+              {gallery.slice(0, 8).map((g, index) => (
+                <div 
+                  key={g.id} 
+                  className="relative group overflow-hidden aspect-square cursor-pointer"
+                  onClick={() => openModal(gallery.slice(0, 8), index, 'gallery')}
+                >
                   <img src={g.image_url || `https://picsum.photos/seed/${g.id}/500/500`} className="w-full h-full object-cover transition duration-700 group-hover:scale-110 opacity-70 group-hover:opacity-100" />
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition duration-300 flex items-center justify-center">
                       <p className="text-white font-bold tracking-widest uppercase text-sm border-2 border-primary px-4 py-2">{g.title}</p>
@@ -850,6 +1018,13 @@ const LandingPage = ({
            </div>
         </div>
       </DynamicSection>
+
+      <ImageModal 
+         isOpen={modalOpen} 
+         onClose={() => setModalOpen(false)} 
+         items={modalItems} 
+         initialIndex={modalStartIndex} 
+      />
 
     </div>
   );
