@@ -1152,6 +1152,12 @@ export default function App() {
     if (error) alert("Erro ao criar: " + error.message);
     else fetchAllData();
   };
+  
+  const updateItem = async (table: string, id: string, data: any) => {
+    const { error } = await supabase.from(table).update(data).eq('id', id);
+    if (error) alert("Erro ao atualizar: " + error.message);
+    else fetchAllData();
+  };
 
   const updateSectionContent = async (section: string, title: string, subtitle: string, imageFile: File | null) => {
     try {
@@ -1187,6 +1193,7 @@ export default function App() {
     // Admin Helper to Add Items
     const AdminList = ({ title, data, table, fields }: { title: string, data: any[], table: string, fields: any[] }) => {
         const [isAdding, setIsAdding] = useState(false);
+        const [editingId, setEditingId] = useState<string | null>(null);
         const [formData, setFormData] = useState<any>({});
         const [files, setFiles] = useState<Record<string, File>>({});
         const [previews, setPreviews] = useState<Record<string, string>>({});
@@ -1200,11 +1207,37 @@ export default function App() {
           }
         };
 
+        const handleEdit = (item: any) => {
+          setFormData(item);
+          setEditingId(item.id);
+          
+          // Setup previews for existing images
+          const newPreviews: any = {};
+          fields.forEach(f => {
+             if(f.type === 'image' && item[f.key]) newPreviews[f.key] = item[f.key];
+          });
+          setPreviews(newPreviews);
+          setFiles({}); // Clear new files
+          setIsAdding(true);
+        };
+
+        const handleAddNew = () => {
+          setEditingId(null);
+          setFormData({});
+          setFiles({});
+          setPreviews({});
+          setIsAdding(!isAdding);
+        };
+
         const handleSubmit = async (e: React.FormEvent) => {
           e.preventDefault();
           setUploading(true);
           try {
             const finalData = { ...formData };
+            // Remove 'id' and 'created_at' from formData if they exist to avoid primary key/readonly errors
+            delete finalData.id;
+            delete finalData.created_at;
+
             for (const key of Object.keys(files)) {
                 const file = files[key];
                 if (file) {
@@ -1216,8 +1249,15 @@ export default function App() {
                   finalData[key] = publicUrl;
                 }
             }
-            await createItem(table, finalData);
+
+            if (editingId) {
+               await updateItem(table, editingId, finalData);
+            } else {
+               await createItem(table, finalData);
+            }
+            
             setIsAdding(false);
+            setEditingId(null);
             setFormData({});
             setFiles({});
             setPreviews({});
@@ -1232,36 +1272,53 @@ export default function App() {
           <div className="bg-white p-6 rounded shadow mb-8 text-black">
             <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-bold">{title}</h3>
-                <button onClick={() => setIsAdding(!isAdding)} className="bg-green-600 text-white px-3 py-1 rounded text-sm flex items-center gap-1">
-                  <Plus size={16} /> Adicionar
+                <button onClick={handleAddNew} className="bg-green-600 text-white px-3 py-1 rounded text-sm flex items-center gap-1">
+                  {isAdding && !editingId ? <X size={16} /> : <Plus size={16} />} 
+                  {isAdding && !editingId ? 'Cancelar' : 'Adicionar'}
                 </button>
             </div>
             {isAdding && (
-              <form onSubmit={handleSubmit} className="mb-6 p-4 bg-neutral-100 border rounded space-y-3">
-                {fields.map(f => (
-                  <div key={f.key}>
-                    <label className="block text-xs font-bold uppercase text-neutral-500 mb-1">{f.label}</label>
-                    {f.type === 'textarea' || f.type === 'richtext' ? (
-                      <RichTextEditor 
-                        value={formData[f.key] || ''} 
-                        onChange={val => setFormData({...formData, [f.key]: val})}
-                      />
-                    ) : f.type === 'image' ? (
-                        <input type="file" accept="image/*" className="w-full" onChange={(e) => handleFileChange(f.key, e)} required={f.required} />
-                    ) : (
-                      <input type={f.type || 'text'} className="w-full border p-2 rounded" onChange={e => setFormData({...formData, [f.key]: e.target.value})} required={f.required} />
-                    )}
-                  </div>
-                ))}
-                <button disabled={uploading} className="bg-primary text-white px-4 py-2 rounded font-bold text-sm">
-                  {uploading ? 'A enviar...' : 'Guardar'}
-                </button>
-              </form>
+              <div className="mb-6 p-4 bg-neutral-100 border rounded space-y-3 relative">
+                <div className="text-xs font-bold text-primary mb-2 uppercase tracking-wider">{editingId ? 'Editar Item' : 'Adicionar Novo'}</div>
+                {editingId && <button onClick={() => { setIsAdding(false); setEditingId(null); }} className="absolute top-2 right-2 text-neutral-400 hover:text-black"><X size={16}/></button>}
+                
+                <form onSubmit={handleSubmit} className="space-y-3">
+                  {fields.map(f => (
+                    <div key={f.key}>
+                      <label className="block text-xs font-bold uppercase text-neutral-500 mb-1">{f.label}</label>
+                      {f.type === 'textarea' || f.type === 'richtext' ? (
+                        <RichTextEditor 
+                          value={formData[f.key] || ''} 
+                          onChange={val => setFormData({...formData, [f.key]: val})}
+                        />
+                      ) : f.type === 'image' ? (
+                          <div className="space-y-2">
+                            {previews[f.key] && <img src={previews[f.key]} alt="Preview" className="h-20 w-auto rounded border" />}
+                            <input type="file" accept="image/*" className="w-full text-sm" onChange={(e) => handleFileChange(f.key, e)} required={!editingId && f.required} />
+                          </div>
+                      ) : f.type === 'datetime-local' ? (
+                          <input 
+                            type="datetime-local" 
+                            className="w-full border p-2 rounded" 
+                            value={formData[f.key] ? new Date(formData[f.key]).toISOString().slice(0, 16) : ''}
+                            onChange={e => setFormData({...formData, [f.key]: e.target.value})} 
+                            required={f.required} 
+                          />
+                      ) : (
+                        <input type={f.type || 'text'} className="w-full border p-2 rounded" value={formData[f.key] || ''} onChange={e => setFormData({...formData, [f.key]: e.target.value})} required={f.required} />
+                      )}
+                    </div>
+                  ))}
+                  <button disabled={uploading} className="bg-primary text-white px-4 py-2 rounded font-bold text-sm w-full md:w-auto">
+                    {uploading ? 'A guardar...' : 'Guardar'}
+                  </button>
+                </form>
+              </div>
             )}
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead className="bg-neutral-100">
-                  <tr>{fields.slice(0, 3).map(f => <th key={f.key} className="p-2 text-left">{f.label}</th>)}<th className="p-2 w-20">Ações</th></tr>
+                  <tr>{fields.slice(0, 3).map(f => <th key={f.key} className="p-2 text-left">{f.label}</th>)}<th className="p-2 w-24 text-right">Ações</th></tr>
                 </thead>
                 <tbody>
                   {data.map(item => (
@@ -1269,11 +1326,15 @@ export default function App() {
                       {fields.slice(0, 3).map(f => (
                         <td key={f.key} className="p-2 truncate max-w-[200px]">
                             {f.type === 'image' && item[f.key] ? <img src={item[f.key]} className="h-10 w-10 object-cover rounded" /> : 
-                             (f.type === 'richtext' || f.type === 'textarea') ? stripHtml(item[f.key]) : item[f.key]?.toString()
+                             (f.type === 'richtext' || f.type === 'textarea') ? stripHtml(item[f.key]) : 
+                             f.type === 'datetime-local' ? new Date(item[f.key]).toLocaleString('pt-PT') : item[f.key]?.toString()
                             }
                         </td>
                       ))}
-                      <td className="p-2"><button onClick={() => deleteItem(table, item.id)} className="text-red-600"><Trash size={16} /></button></td>
+                      <td className="p-2 text-right space-x-2">
+                        <button onClick={() => handleEdit(item)} className="text-blue-600 hover:text-blue-800" title="Editar"><Edit size={16} /></button>
+                        <button onClick={() => deleteItem(table, item.id)} className="text-red-600 hover:text-red-800" title="Eliminar"><Trash size={16} /></button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
