@@ -457,6 +457,57 @@ const ContactsPage = ({ content }: { content: SiteContent | undefined }) => {
   );
 };
 
+// --- AUTOMATIC SCROLL MARQUEE CAROUSEL ---
+const PartnersMarquee = ({ partners }: { partners: Partner[] }) => {
+  if (partners.length === 0) return <p className="text-neutral-400 text-center w-full">Seja o nosso primeiro parceiro!</p>;
+
+  // Ensure enough items for smooth scrolling on large screens
+  // If we have few partners, duplicate them more times in the base list
+  let baseList = partners;
+  if (partners.length < 5) {
+     baseList = [...partners, ...partners, ...partners, ...partners]; 
+  }
+
+  return (
+    <div className="w-full overflow-hidden py-4 group cursor-pointer select-none">
+      <style>{`
+        @keyframes marquee {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+        .animate-marquee {
+          display: flex;
+          width: max-content;
+          animation: marquee 40s linear infinite;
+        }
+        .group:hover .animate-marquee,
+        .group:active .animate-marquee {
+          animation-play-state: paused;
+        }
+      `}</style>
+      
+      <div className="animate-marquee">
+        {/* Set 1 */}
+        <div className="flex gap-12 items-center pr-12">
+           {baseList.map((p, i) => (
+               <a key={`s1-${i}`} href={p.website_url} target="_blank" rel="noreferrer" className="block w-20 md:w-32 grayscale hover:grayscale-0 transition opacity-60 hover:opacity-100 flex-shrink-0">
+                 <img src={p.logo_url || `https://picsum.photos/seed/${p.id}/200/100`} alt={p.name} className="w-full object-contain" />
+               </a>
+           ))}
+        </div>
+        {/* Set 2 (Duplicate for loop) */}
+        <div className="flex gap-12 items-center pr-12">
+           {baseList.map((p, i) => (
+               <a key={`s2-${i}`} href={p.website_url} target="_blank" rel="noreferrer" className="block w-20 md:w-32 grayscale hover:grayscale-0 transition opacity-60 hover:opacity-100 flex-shrink-0">
+                 <img src={p.logo_url || `https://picsum.photos/seed/${p.id}/200/100`} alt={p.name} className="w-full object-contain" />
+               </a>
+           ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const LandingPage = ({ 
   onNavigate, 
   news, 
@@ -749,16 +800,7 @@ const LandingPage = ({
 
       {/* PARTNERS SECTION */}
       <DynamicSection id="partners" content={siteContent['partners']} defaultClass="bg-neutral-100 text-black" defaultTitle="Os Nossos Parceiros" padding="py-6">
-          <SectionCarousel>
-             <div className="flex gap-8 items-center px-4">
-                {partners.map(p => (
-                   <a href={p.website_url} target="_blank" rel="noreferrer" key={p.id} className="block w-20 md:w-32 grayscale hover:grayscale-0 transition opacity-60 hover:opacity-100 flex-shrink-0 snap-center">
-                     <img src={p.logo_url || `https://picsum.photos/seed/${p.id}/200/100`} alt={p.name} className="w-full object-contain" />
-                   </a>
-                ))}
-             </div>
-             {partners.length === 0 && <p className="text-neutral-400 text-center w-full">Seja o nosso primeiro parceiro!</p>}
-          </SectionCarousel>
+          <PartnersMarquee partners={partners} />
       </DynamicSection>
 
       {/* SHOP SECTION (SMALLER CARDS) */}
