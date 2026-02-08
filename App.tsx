@@ -403,7 +403,7 @@ const ContactsPage = ({ content }: { content: SiteContent | undefined }) => {
     e.preventDefault();
     const { name, email, subject, message } = formData;
     const body = `Nome: ${name}\nEmail: ${email}\n\nMensagem:\n${message}`;
-    window.location.href = `mailto:almavoleibol@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = `mailto:almavoleibolviseu@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
   return (
