@@ -748,11 +748,11 @@ const LandingPage = ({
       </section>
 
       {/* PARTNERS SECTION */}
-      <DynamicSection id="partners" content={siteContent['partners']} defaultClass="bg-neutral-100 text-black" defaultTitle="Os Nossos Parceiros" padding="py-12">
+      <DynamicSection id="partners" content={siteContent['partners']} defaultClass="bg-neutral-100 text-black" defaultTitle="Os Nossos Parceiros" padding="py-6">
           <SectionCarousel>
-             <div className="flex gap-12 items-center px-4">
+             <div className="flex gap-8 items-center px-4">
                 {partners.map(p => (
-                   <a href={p.website_url} target="_blank" rel="noreferrer" key={p.id} className="block w-32 md:w-48 grayscale hover:grayscale-0 transition opacity-60 hover:opacity-100 flex-shrink-0 snap-center">
+                   <a href={p.website_url} target="_blank" rel="noreferrer" key={p.id} className="block w-20 md:w-32 grayscale hover:grayscale-0 transition opacity-60 hover:opacity-100 flex-shrink-0 snap-center">
                      <img src={p.logo_url || `https://picsum.photos/seed/${p.id}/200/100`} alt={p.name} className="w-full object-contain" />
                    </a>
                 ))}
