@@ -478,7 +478,7 @@ const PartnersMarquee = ({ partners }: { partners: Partner[] }) => {
         .animate-marquee {
           display: flex;
           width: max-content;
-          animation: marquee 40s linear infinite;
+          animation: marquee 30s linear infinite;
         }
         .group:hover .animate-marquee,
         .group:active .animate-marquee {
