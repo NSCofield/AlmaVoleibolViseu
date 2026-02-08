@@ -1,18 +1,27 @@
 import React from 'react';
 import { Facebook, Instagram, Mail, MapPin, Phone } from 'lucide-react';
+import { SiteContent } from '../types';
 
-export const Footer: React.FC = () => {
+interface FooterProps {
+  content?: SiteContent;
+}
+
+export const Footer: React.FC<FooterProps> = ({ content }) => {
+  const title = content?.title || "ALMA VISEU";
+  const description = content?.subtitle || "Promovendo o voleibol em Viseu com paixão, dedicação e espírito de equipa. Junta-te a nós e faz parte desta grande família.";
+  const image = content?.image_url;
+
   return (
     <footer className="bg-secondary text-white pt-10 pb-6 border-t-4 border-primary">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-3 gap-8">
         
         {/* About */}
         <div>
-          <h3 className="text-2xl font-bold text-primary mb-4 italic">ALMA VISEU</h3>
-          <p className="text-gray-400 text-sm leading-relaxed">
-            Promovendo o voleibol em Viseu com paixão, dedicação e espírito de equipa.
-            Junta-te a nós e faz parte desta grande família.
-          </p>
+          {image && (
+             <img src={image} alt={title} className="h-24 w-auto mb-4 object-contain" />
+          )}
+          <h3 className="text-2xl font-bold text-primary mb-4 italic">{title}</h3>
+          <div className="text-gray-400 text-sm leading-relaxed" dangerouslySetInnerHTML={{__html: description}} />
         </div>
 
         {/* Contacts */}

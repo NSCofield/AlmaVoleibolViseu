@@ -1115,6 +1115,7 @@ export default function App() {
       const sections = [
         { id: 'hero', label: 'Início (Hero)' },
         { id: 'branding', label: 'Logótipo & Branding' },
+        { id: 'footer', label: 'Rodapé (Sobre)' },
         { id: 'news', label: 'Notícias' },
         { id: 'calendar', label: 'Calendário' },
         { id: 'teams', label: 'Equipas' },
@@ -1290,7 +1291,7 @@ export default function App() {
       <main className="flex-grow">
         {renderContent()}
       </main>
-      {currentPage !== 'admin' && currentPage !== 'login' && <Footer />}
+      {currentPage !== 'admin' && currentPage !== 'login' && <Footer content={siteContent['footer']} />}
     </div>
   );
 }
