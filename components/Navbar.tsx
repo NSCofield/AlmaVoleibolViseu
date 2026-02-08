@@ -5,33 +5,30 @@ interface NavbarProps {
   onNavigate: (page: string) => void;
   currentPage: string;
   isAdmin: boolean;
+  logoUrl?: string;
 }
 
 const AlmaLogo = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 500 500" className={className} xmlns="http://www.w3.org/2000/svg">
     <defs>
       {/* Path for the curved text at the bottom */}
-      <path id="ringCurve" d="M 88, 250 A 162, 162 0 0, 0 412, 250" fill="none" />
+      <path id="ringCurve" d="M 75, 250 A 175, 175 0 0, 0 425, 250" fill="none" />
     </defs>
   
     {/* Circle Ring */}
-    <circle cx="250" cy="250" r="185" stroke="#ea580c" strokeWidth="55" fill="none" />
+    <circle cx="250" cy="250" r="200" stroke="#ea580c" strokeWidth="60" fill="none" />
     
-    {/* Big V shape */}
-    <path d="M 15 25 L 250 260 L 485 25 L 400 25 L 250 175 L 100 25 Z" fill="#ea580c" />
+    {/* Top V Shape */}
+    <path d="M 30 40 L 130 40 L 250 190 L 370 40 L 470 40 L 250 310 Z" fill="#ea580c" />
     
-    {/* Cheek Triangles */}
-    <path d="M 150 180 L 205 235 L 150 235 Z" fill="#ea580c" />
-    <path d="M 350 180 L 295 235 L 350 235 Z" fill="#ea580c" />
-    
-    {/* Nose Triangle */}
-    <path d="M 233 245 L 267 245 L 250 265 Z" fill="#ea580c" />
+    {/* Inner Nose Triangle */}
+    <path d="M 215 250 L 285 250 L 250 290 Z" fill="#ea580c" />
     
     {/* VISEU Text */}
-    <text x="250" y="380" textAnchor="middle" fill="#ea580c" fontSize="75" fontWeight="900" style={{fontFamily: 'Arial Black, sans-serif'}} letterSpacing="2">VISEU</text>
+    <text x="250" y="390" textAnchor="middle" fill="#ea580c" fontSize="70" fontWeight="900" style={{fontFamily: 'Arial Black, sans-serif'}} letterSpacing="2">VISEU</text>
     
     {/* Curved Text */}
-    <text fill="white" fontSize="30" fontWeight="bold" letterSpacing="1" style={{fontFamily: 'Arial, sans-serif'}}>
+    <text fill="white" fontSize="34" fontWeight="bold" letterSpacing="1" style={{fontFamily: 'Arial, sans-serif'}}>
       <textPath href="#ringCurve" startOffset="50%" textAnchor="middle" alignmentBaseline="central">
         FUNDADO EM 2022
       </textPath>
@@ -39,7 +36,7 @@ const AlmaLogo = ({ className }: { className?: string }) => (
   </svg>
 );
 
-export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentPage, isAdmin }) => {
+export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentPage, isAdmin, logoUrl }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const navItems = [
@@ -47,16 +44,16 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentPage, isAdmin
     { id: 'news', label: 'Notícias' },
     { id: 'calendar', label: 'Calendário' },
     { id: 'teams', label: 'Equipas' },
-    { id: 'shop', label: 'Loja' },
-    { id: 'partners', label: 'Parceiros' },
-    { id: 'about', label: 'Quem Somos' },
     { id: 'photos', label: 'Fotos' },
+    { id: 'partners', label: 'Parceiros' },
+    { id: 'shop', label: 'Loja' },
+    { id: 'about', label: 'Quem Somos' },
     { id: 'contacts', label: 'Contactos' },
   ];
 
   const handleNav = (id: string) => {
-    // If it's a special page (admin/login/about), navigate directly
-    if (id === 'admin' || id === 'login' || id === 'about') {
+    // If it's a special page (admin/login/about/contacts), navigate directly
+    if (id === 'admin' || id === 'login' || id === 'about' || id === 'contacts') {
       onNavigate(id);
       window.scrollTo(0, 0);
       setIsOpen(false);
@@ -95,7 +92,15 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentPage, isAdmin
         <div className="flex items-center justify-between h-24">
           {/* Logo and Brand Name */}
           <div className="flex items-center cursor-pointer group gap-3" onClick={() => handleNav('home')}>
-            <AlmaLogo className="h-16 w-16 md:h-20 md:w-20 transition-transform group-hover:scale-105" />
+            {logoUrl ? (
+              <img 
+                src={logoUrl} 
+                alt="ALMA Logo" 
+                className="h-16 w-16 md:h-20 md:w-20 object-contain transition-transform group-hover:scale-105" 
+              />
+            ) : (
+              <AlmaLogo className="h-16 w-16 md:h-20 md:w-20 transition-transform group-hover:scale-105" />
+            )}
             <span className="text-3xl md:text-4xl font-black italic tracking-tighter text-white">ALMA</span>
           </div>
           

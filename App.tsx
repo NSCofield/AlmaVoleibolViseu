@@ -130,7 +130,7 @@ const RichTextEditor = ({ value, onChange, className, placeholder }: { value: st
 };
 
 // --- CAROUSEL COMPONENT ---
-const SectionCarousel = ({ children, className }: { children: React.ReactNode, className?: string }) => {
+const SectionCarousel = ({ children, className }: { children?: React.ReactNode, className?: string }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const scroll = (direction: 'left' | 'right') => {
@@ -395,6 +395,68 @@ const AboutPage = ({ teams, organization }: { teams: Team[], organization: Organ
   );
 };
 
+// --- CONTACTS PAGE COMPONENT ---
+const ContactsPage = ({ content }: { content: SiteContent | undefined }) => {
+  const [formData, setFormData] = useState({ name: '', email: '', subject: '', message: '' });
+
+  const handleContactSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const { name, email, subject, message } = formData;
+    const body = `Nome: ${name}\nEmail: ${email}\n\nMensagem:\n${message}`;
+    window.location.href = `mailto:almavoleibol@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
+
+  return (
+    <div className="bg-neutral-900 min-h-screen text-white pt-12 pb-24 px-4 animate-fade-in">
+      <DynamicSection id="contacts" content={content} defaultClass="bg-neutral-900 text-white" defaultTitle="Contactos">
+        <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-12 mt-12">
+           <div>
+              <div className="space-y-8 text-lg">
+                 <div className="flex items-start gap-6">
+                    <MapPin className="text-primary mt-1" size={32} />
+                    <div>
+                       <h4 className="font-bold text-inherit">Localização</h4>
+                       <p className="opacity-70">Escola Secundária Alves Martins<br/>Avenida Infante Dom Henrique, 3514-507, Viseu</p>
+                    </div>
+                 </div>
+                 <div className="flex items-start gap-6">
+                    <Mail className="text-primary mt-1" size={32} />
+                    <div>
+                       <h4 className="font-bold text-inherit">Email</h4>
+                       <a href="mailto:almavoleibolviseu@gmail.com" className="opacity-70 hover:opacity-100 transition">almavoleibolviseu@gmail.com</a>
+                    </div>
+                 </div>
+                 <div className="flex items-start gap-6">
+                    <Phone className="text-primary mt-1" size={32} />
+                    <div>
+                       <h4 className="font-bold text-inherit">Telefone</h4>
+                       <div className="opacity-70 flex flex-col">
+                         <span>+351 919 264 188</span>
+                         <span>+351 925 332 607</span>
+                       </div>
+                    </div>
+                 </div>
+              </div>
+           </div>
+           
+           <div className="bg-neutral-800 p-8 rounded-2xl shadow-xl border border-neutral-700">
+              <h3 className="text-2xl font-bold text-white mb-6">Envia-nos uma mensagem</h3>
+              <form className="space-y-4" onSubmit={handleContactSubmit}>
+                 <div className="grid grid-cols-2 gap-4">
+                    <input type="text" placeholder="Nome" className="bg-black border border-neutral-700 text-white rounded p-3 focus:border-primary outline-none" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                    <input type="email" placeholder="Email" className="bg-black border border-neutral-700 text-white rounded p-3 focus:border-primary outline-none" required value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+                 </div>
+                 <input type="text" placeholder="Assunto" className="w-full bg-black border border-neutral-700 text-white rounded p-3 focus:border-primary outline-none" required value={formData.subject} onChange={e => setFormData({...formData, subject: e.target.value})} />
+                 <textarea placeholder="A tua mensagem..." className="w-full bg-black border border-neutral-700 text-white rounded p-3 focus:border-primary outline-none h-32" required value={formData.message} onChange={e => setFormData({...formData, message: e.target.value})}></textarea>
+                 <button className="w-full bg-primary text-white font-bold py-4 rounded hover:bg-orange-700 transition uppercase tracking-widest">Enviar</button>
+              </form>
+           </div>
+        </div>
+      </DynamicSection>
+    </div>
+  );
+};
+
 const LandingPage = ({ 
   onNavigate, 
   news, 
@@ -423,8 +485,6 @@ const LandingPage = ({
 
   const upcoming = matches.filter(m => new Date(m.date) >= new Date()).slice(0, 5);
   const past = matches.filter(m => new Date(m.date) < new Date()).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
-
-  const [formData, setFormData] = useState({ name: '', email: '', subject: '', message: '' });
 
   // Modal State
   const [modalOpen, setModalOpen] = useState(false);
@@ -469,13 +529,6 @@ const LandingPage = ({
     setModalItems(formattedItems);
     setModalStartIndex(index);
     setModalOpen(true);
-  };
-
-  const handleContactSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const { name, email, subject, message } = formData;
-    const body = `Nome: ${name}\nEmail: ${email}\n\nMensagem:\n${message}`;
-    window.location.href = `mailto:almavoleibol@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
   const defaultHero = {
@@ -673,6 +726,41 @@ const LandingPage = ({
           </SectionCarousel>
       </DynamicSection>
 
+      {/* GALLERY SECTION */}
+      <section id="photos" className="py-4 bg-black">
+        <DynamicSection id="photos-inner" content={siteContent['photos']} defaultClass="bg-black text-white" defaultTitle="Galeria">
+            <SectionCarousel>
+              {gallery.map((g, index) => (
+                <div 
+                  key={g.id} 
+                  className="relative group overflow-hidden aspect-square cursor-pointer snap-center min-w-[200px] md:min-w-[300px] rounded-lg"
+                  onClick={() => openModal(gallery, index, 'gallery')}
+                >
+                  <img src={g.image_url || `https://picsum.photos/seed/${g.id}/500/500`} className="w-full h-full object-cover transition duration-700 group-hover:scale-110 opacity-70 group-hover:opacity-100" />
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition duration-300 flex items-center justify-center">
+                      <p className="text-white font-bold tracking-widest uppercase text-sm border-2 border-primary px-4 py-2 text-center">{g.title}</p>
+                  </div>
+                </div>
+              ))}
+              {gallery.length === 0 && <p className="text-neutral-500 text-center w-full">Galeria vazia.</p>}
+            </SectionCarousel>
+        </DynamicSection>
+      </section>
+
+      {/* PARTNERS SECTION */}
+      <DynamicSection id="partners" content={siteContent['partners']} defaultClass="bg-neutral-100 text-black" defaultTitle="Os Nossos Parceiros" padding="py-12">
+          <SectionCarousel>
+             <div className="flex gap-12 items-center px-4">
+                {partners.map(p => (
+                   <a href={p.website_url} target="_blank" rel="noreferrer" key={p.id} className="block w-32 md:w-48 grayscale hover:grayscale-0 transition opacity-60 hover:opacity-100 flex-shrink-0 snap-center">
+                     <img src={p.logo_url || `https://picsum.photos/seed/${p.id}/200/100`} alt={p.name} className="w-full object-contain" />
+                   </a>
+                ))}
+             </div>
+             {partners.length === 0 && <p className="text-neutral-400 text-center w-full">Seja o nosso primeiro parceiro!</p>}
+          </SectionCarousel>
+      </DynamicSection>
+
       {/* SHOP SECTION (SMALLER CARDS) */}
       <DynamicSection id="shop" content={siteContent['shop']} defaultClass="bg-black text-white" defaultTitle="Loja Oficial">
           <SectionCarousel>
@@ -699,87 +787,6 @@ const LandingPage = ({
           </SectionCarousel>
       </DynamicSection>
 
-      {/* PARTNERS SECTION */}
-      <DynamicSection id="partners" content={siteContent['partners']} defaultClass="bg-neutral-100 text-black" defaultTitle="Os Nossos Parceiros" padding="py-12">
-          <SectionCarousel>
-             <div className="flex gap-12 items-center px-4">
-                {partners.map(p => (
-                   <a href={p.website_url} target="_blank" rel="noreferrer" key={p.id} className="block w-32 md:w-48 grayscale hover:grayscale-0 transition opacity-60 hover:opacity-100 flex-shrink-0 snap-center">
-                     <img src={p.logo_url || `https://picsum.photos/seed/${p.id}/200/100`} alt={p.name} className="w-full object-contain" />
-                   </a>
-                ))}
-             </div>
-             {partners.length === 0 && <p className="text-neutral-400 text-center w-full">Seja o nosso primeiro parceiro!</p>}
-          </SectionCarousel>
-      </DynamicSection>
-
-      {/* GALLERY SECTION */}
-      <section id="photos" className="py-4 bg-black">
-        <DynamicSection id="photos-inner" content={siteContent['photos']} defaultClass="bg-black text-white" defaultTitle="Galeria">
-            <SectionCarousel>
-              {gallery.map((g, index) => (
-                <div 
-                  key={g.id} 
-                  className="relative group overflow-hidden aspect-square cursor-pointer snap-center min-w-[200px] md:min-w-[300px] rounded-lg"
-                  onClick={() => openModal(gallery, index, 'gallery')}
-                >
-                  <img src={g.image_url || `https://picsum.photos/seed/${g.id}/500/500`} className="w-full h-full object-cover transition duration-700 group-hover:scale-110 opacity-70 group-hover:opacity-100" />
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition duration-300 flex items-center justify-center">
-                      <p className="text-white font-bold tracking-widest uppercase text-sm border-2 border-primary px-4 py-2 text-center">{g.title}</p>
-                  </div>
-                </div>
-              ))}
-              {gallery.length === 0 && <p className="text-neutral-500 text-center w-full">Galeria vazia.</p>}
-            </SectionCarousel>
-        </DynamicSection>
-      </section>
-
-      {/* CONTACT SECTION */}
-      <DynamicSection id="contacts" content={siteContent['contacts']} defaultClass="bg-neutral-900 text-white" defaultTitle="Contactos">
-        <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-12">
-           <div>
-              <div className="space-y-8 text-lg">
-                 <div className="flex items-start gap-6">
-                    <MapPin className="text-primary mt-1" size={32} />
-                    <div>
-                       <h4 className="font-bold text-inherit">Localização</h4>
-                       <p className="opacity-70">Escola Secundária Alves Martins<br/>Avenida Infante Dom Henrique, 3514-507, Viseu</p>
-                    </div>
-                 </div>
-                 <div className="flex items-start gap-6">
-                    <Mail className="text-primary mt-1" size={32} />
-                    <div>
-                       <h4 className="font-bold text-inherit">Email</h4>
-                       <a href="mailto:almavoleibolviseu@gmail.com" className="opacity-70 hover:opacity-100 transition">almavoleibolviseu@gmail.com</a>
-                    </div>
-                 </div>
-                 <div className="flex items-start gap-6">
-                    <Phone className="text-primary mt-1" size={32} />
-                    <div>
-                       <h4 className="font-bold text-inherit">Telefone</h4>
-                       <div className="opacity-70 flex flex-col">
-                         <span>+351 919 264 188</span>
-                         <span>+351 925 332 607</span>
-                       </div>
-                    </div>
-                 </div>
-              </div>
-           </div>
-           
-           <div className="bg-neutral-800 p-8 rounded-2xl shadow-xl border border-neutral-700">
-              <h3 className="text-2xl font-bold text-white mb-6">Envia-nos uma mensagem</h3>
-              <form className="space-y-4" onSubmit={handleContactSubmit}>
-                 <div className="grid grid-cols-2 gap-4">
-                    <input type="text" placeholder="Nome" className="bg-black border border-neutral-700 text-white rounded p-3 focus:border-primary outline-none" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
-                    <input type="email" placeholder="Email" className="bg-black border border-neutral-700 text-white rounded p-3 focus:border-primary outline-none" required value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
-                 </div>
-                 <input type="text" placeholder="Assunto" className="w-full bg-black border border-neutral-700 text-white rounded p-3 focus:border-primary outline-none" required value={formData.subject} onChange={e => setFormData({...formData, subject: e.target.value})} />
-                 <textarea placeholder="A tua mensagem..." className="w-full bg-black border border-neutral-700 text-white rounded p-3 focus:border-primary outline-none h-32" required value={formData.message} onChange={e => setFormData({...formData, message: e.target.value})}></textarea>
-                 <button className="w-full bg-primary text-white font-bold py-4 rounded hover:bg-orange-700 transition uppercase tracking-widest">Enviar</button>
-              </form>
-           </div>
-        </div>
-      </DynamicSection>
       <ImageModal isOpen={modalOpen} onClose={() => setModalOpen(false)} items={modalItems} initialIndex={modalStartIndex} />
     </div>
   );
@@ -1065,6 +1072,7 @@ export default function App() {
     const SiteContentEditor = () => {
       const sections = [
         { id: 'hero', label: 'Início (Hero)' },
+        { id: 'branding', label: 'Logótipo & Branding' },
         { id: 'news', label: 'Notícias' },
         { id: 'calendar', label: 'Calendário' },
         { id: 'teams', label: 'Equipas' },
@@ -1107,16 +1115,29 @@ export default function App() {
            </div>
 
            <div className="space-y-4">
+              {selectedSection === 'branding' ? (
+                <div>
+                   <p className="text-sm text-neutral-500 mb-4 bg-yellow-50 p-3 rounded border border-yellow-200">
+                     Aqui podes alterar o logótipo do site. O título e subtítulo serão ignorados nesta secção.
+                   </p>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-sm font-bold text-neutral-600 mb-1">Título da Secção</label>
+                    <RichTextEditor value={title} onChange={setTitle} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-neutral-600 mb-1">Subtítulo / Descrição</label>
+                    <RichTextEditor value={subtitle} onChange={setSubtitle} />
+                  </div>
+                </>
+              )}
+              
               <div>
-                <label className="block text-sm font-bold text-neutral-600 mb-1">Título da Secção</label>
-                <RichTextEditor value={title} onChange={setTitle} />
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-neutral-600 mb-1">Subtítulo / Descrição</label>
-                <RichTextEditor value={subtitle} onChange={setSubtitle} />
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-neutral-600 mb-1">Imagem de Fundo</label>
+                <label className="block text-sm font-bold text-neutral-600 mb-1">
+                  {selectedSection === 'branding' ? 'Imagem do Logótipo' : 'Imagem de Fundo'}
+                </label>
                 <input type="file" accept="image/*" onChange={(e) => {
                   if (e.target.files?.[0]) {
                     setFile(e.target.files[0]);
@@ -1124,12 +1145,12 @@ export default function App() {
                   }
                 }} className="w-full mb-2" />
                 {preview && (
-                  <div className="relative h-48 rounded overflow-hidden border">
-                     <img src={preview} alt="Preview" className="w-full h-full object-cover" />
+                  <div className={`relative rounded overflow-hidden border ${selectedSection === 'branding' ? 'w-32 h-32 bg-black flex items-center justify-center' : 'h-48 w-full'}`}>
+                     <img src={preview} alt="Preview" className={`max-w-full max-h-full ${selectedSection === 'branding' ? 'object-contain' : 'object-cover'}`} />
                      {file && <div className="absolute top-2 right-2 bg-yellow-500 text-black text-xs font-bold px-2 py-1 rounded">Nova Imagem</div>}
                   </div>
                 )}
-                <p className="text-xs text-neutral-400 mt-1">Se não escolheres imagem, será usada a cor padrão.</p>
+                <p className="text-xs text-neutral-400 mt-1">Se não escolheres imagem, será usada a padrão.</p>
               </div>
               <button onClick={handleSave} disabled={uploading} className="bg-primary text-white px-6 py-2 rounded font-bold hover:bg-orange-700 transition">
                 {uploading ? 'A guardar...' : 'Guardar Alterações'}
@@ -1187,6 +1208,8 @@ export default function App() {
     if (currentPage === 'admin' && session) return renderAdmin();
 
     if (currentPage === 'about') return <AboutPage teams={teams} organization={organization} />;
+    
+    if (currentPage === 'contacts') return <ContactsPage content={siteContent['contacts']} />;
 
     if (currentPage === 'login') {
       return (
@@ -1221,7 +1244,7 @@ export default function App() {
 
   return (
     <div className="flex flex-col min-h-screen font-sans">
-      {currentPage !== 'admin' && currentPage !== 'login' && <Navbar onNavigate={setCurrentPage} currentPage={currentPage} isAdmin={!!session} />}
+      {currentPage !== 'admin' && currentPage !== 'login' && <Navbar onNavigate={setCurrentPage} currentPage={currentPage} isAdmin={!!session} logoUrl={siteContent['branding']?.image_url} />}
       <main className="flex-grow">
         {renderContent()}
       </main>
