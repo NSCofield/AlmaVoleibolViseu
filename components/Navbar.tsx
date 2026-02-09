@@ -8,37 +8,9 @@ interface NavbarProps {
   logoUrl?: string;
 }
 
-const AlmaLogo = ({ className }: { className?: string }) => (
-  <svg viewBox="0 0 500 500" className={className} xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      {/* Path for the curved text at the bottom */}
-      <path id="ringCurve" d="M 75, 250 A 175, 175 0 0, 0 425, 250" fill="none" />
-    </defs>
-  
-    {/* Circle Ring */}
-    <circle cx="250" cy="250" r="200" stroke="#ea580c" strokeWidth="60" fill="none" />
-    
-    {/* Top V Shape */}
-    <path d="M 30 40 L 130 40 L 250 190 L 370 40 L 470 40 L 250 310 Z" fill="#ea580c" />
-    
-    {/* Inner Nose Triangle */}
-    <path d="M 215 250 L 285 250 L 250 290 Z" fill="#ea580c" />
-    
-    {/* VISEU Text */}
-    <text x="250" y="390" textAnchor="middle" fill="#ea580c" fontSize="70" fontWeight="900" style={{fontFamily: 'Arial Black, sans-serif'}} letterSpacing="2">VISEU</text>
-    
-    {/* Curved Text */}
-    <text fill="white" fontSize="34" fontWeight="bold" letterSpacing="1" style={{fontFamily: 'Arial, sans-serif'}}>
-      <textPath href="#ringCurve" startOffset="50%" textAnchor="middle" alignmentBaseline="central">
-        FUNDADO EM 2022
-      </textPath>
-    </text>
-  </svg>
-);
-
 export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentPage, isAdmin, logoUrl }) => {
   const [isOpen, setIsOpen] = useState(false);
-
+  
   const navItems = [
     { id: 'home', label: 'Início' },
     { id: 'news', label: 'Notícias' },
@@ -47,7 +19,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentPage, isAdmin
     { id: 'photos', label: 'Fotos' },
     { id: 'partners', label: 'Parceiros' },
     { id: 'shop', label: 'Loja' },
-    { id: 'about', label: 'Sobre' },
+    { id: 'about', label: 'Quem Somos' },
     { id: 'contacts', label: 'Contactos' },
   ];
 
@@ -87,31 +59,18 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentPage, isAdmin
   };
 
   return (
-    <nav className="bg-black/95 backdrop-blur-md text-white sticky top-0 z-50 border-b-2 border-primary shadow-2xl">
+    <nav className="bg-black/95 backdrop-blur-md text-white sticky top-0 z-50 border-b-2 border-primary shadow-2xl transition-all duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-24">
-          {/* Logo and Brand Name */}
-          <div className="flex items-center cursor-pointer group gap-3" onClick={() => handleNav('home')}>
-            {logoUrl ? (
-              <img 
-                src={logoUrl} 
-                alt="ALMA Logo" 
-                className="h-16 w-16 md:h-20 md:w-20 object-contain transition-transform group-hover:scale-105" 
-              />
-            ) : (
-              <AlmaLogo className="h-16 w-16 md:h-20 md:w-20 transition-transform group-hover:scale-105" />
-            )}
-            <span className="text-3xl md:text-4xl font-black italic tracking-tighter text-white">ALMA</span>
-          </div>
+        <div className="flex items-center justify-center h-24 relative">
           
-          {/* Desktop Navigation */}
+          {/* Desktop Navigation - Centered */}
           <div className="hidden lg:block">
-            <div className="ml-10 flex items-baseline space-x-2">
+            <div className="flex items-baseline space-x-2">
               {navItems.map((item) => (
                 <button
                   key={item.id}
                   onClick={() => handleNav(item.id)}
-                  className={`px-3 py-2 rounded-md text-sm font-bold uppercase tracking-wider transition-all duration-200 hover:text-primary hover:bg-white/5 ${currentPage === item.id ? 'text-primary' : 'text-gray-300'}`}
+                  className={`px-3 py-2 rounded-md text-sm font-montserrat font-extrabold uppercase tracking-wider transition-all duration-200 hover:text-primary hover:bg-white/5 ${currentPage === item.id ? 'text-primary' : 'text-gray-300'}`}
                 >
                   {item.label}
                 </button>
@@ -119,7 +78,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentPage, isAdmin
               {isAdmin ? (
                 <button
                    onClick={() => handleNav('admin')}
-                   className="ml-4 px-4 py-2 rounded-full text-sm font-bold bg-primary text-white hover:bg-orange-700 flex items-center gap-2 transition-transform hover:scale-105"
+                   className="ml-4 px-4 py-2 rounded-full text-sm font-montserrat font-extrabold bg-primary text-white hover:bg-orange-700 flex items-center gap-2 transition-transform hover:scale-105"
                 >
                   <User size={16} /> Admin
                 </button>
@@ -135,8 +94,8 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentPage, isAdmin
             </div>
           </div>
           
-          {/* Mobile menu button */}
-          <div className="-mr-2 flex lg:hidden">
+          {/* Mobile menu button - Positioned absolutely to the right */}
+          <div className="absolute right-0 flex lg:hidden">
             <button
               onClick={() => setIsOpen(!isOpen)}
               className="inline-flex items-center justify-center p-2 rounded-md text-primary hover:text-white hover:bg-gray-800 focus:outline-none"
@@ -155,7 +114,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentPage, isAdmin
               <button
                 key={item.id}
                 onClick={() => handleNav(item.id)}
-                className="block w-full text-left px-3 py-3 rounded-md text-base font-bold text-gray-300 hover:bg-gray-900 hover:text-primary border-b border-gray-900"
+                className="block w-full text-left px-3 py-3 rounded-md text-base font-montserrat font-extrabold text-gray-300 hover:bg-gray-900 hover:text-primary border-b border-gray-900"
               >
                 {item.label}
               </button>

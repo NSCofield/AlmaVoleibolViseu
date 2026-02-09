@@ -291,7 +291,7 @@ const SectionTitle = ({ title, subtitle, className }: { title: string, subtitle?
 
   return (
     <div className={`mb-12 text-center ${className}`}>
-      <h2 className="text-4xl md:text-5xl font-black italic text-inherit mb-2 uppercase tracking-tighter leading-tight">
+      <h2 className="text-4xl md:text-5xl font-montserrat font-extrabold italic text-inherit mb-2 uppercase tracking-tighter leading-tight">
         {renderTitle()}
       </h2>
       {subtitle && (
@@ -1215,11 +1215,11 @@ export default function App() {
         <div className="flex flex-col md:flex-row h-[calc(100vh-64px)]">
           <div className="w-full md:w-64 bg-white border-r p-4 flex flex-col justify-between">
             <div className="space-y-2">
-              <button onClick={() => setAdminTab('conteudo')} className={`w-full text-left p-2 rounded capitalize font-medium ${adminTab === 'conteudo' ? 'bg-primary text-white' : 'hover:bg-neutral-100 text-neutral-700'}`}>
+              <button onClick={() => setAdminTab('conteudo')} className={`w-full text-left p-2 rounded capitalize font-montserrat font-extrabold ${adminTab === 'conteudo' ? 'bg-primary text-white' : 'hover:bg-neutral-100 text-neutral-700'}`}>
                   <span className="flex items-center gap-2"><Layout size={16}/> Conteúdos</span>
               </button>
               {['noticias', 'jogos', 'loja', 'parceiros', 'equipas', 'galeria', 'organograma', 'definições'].map(tab => (
-                <button key={tab} onClick={() => setAdminTab(tab)} className={`w-full text-left p-2 rounded capitalize font-medium ${adminTab === tab ? 'bg-primary text-white' : 'hover:bg-neutral-100 text-neutral-700'}`}>
+                <button key={tab} onClick={() => setAdminTab(tab)} className={`w-full text-left p-2 rounded capitalize font-montserrat font-extrabold ${adminTab === tab ? 'bg-primary text-white' : 'hover:bg-neutral-100 text-neutral-700'}`}>
                   {tab === 'definições' ? <span className="flex items-center gap-2"><Settings size={16}/> Definições</span> : tab}
                 </button>
               ))}
