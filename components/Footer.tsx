@@ -1,12 +1,13 @@
 import React from 'react';
-import { Facebook, Instagram, Mail, MapPin, Phone } from 'lucide-react';
+import { Facebook, Instagram, Mail, MapPin, Phone, Lock } from 'lucide-react';
 import { SiteContent } from '../types';
 
 interface FooterProps {
   content?: SiteContent;
+  onNavigate: (page: string) => void;
 }
 
-export const Footer: React.FC<FooterProps> = ({ content }) => {
+export const Footer: React.FC<FooterProps> = ({ content, onNavigate }) => {
   const title = content?.title || "";
   const description = content?.subtitle || "Promovendo o voleibol em Viseu com paixão, dedicação e espírito de equipa. Junta-te a nós e faz parte desta grande família.";
   const image = content?.image_url;
@@ -60,8 +61,17 @@ export const Footer: React.FC<FooterProps> = ({ content }) => {
         </div>
       </div>
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-10 pt-6 border-t border-gray-800 text-center text-xs text-gray-500">
-        &copy; {new Date().getFullYear()} ALMA. Todos os direitos reservados.
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-10 pt-6 border-t border-gray-800 flex flex-col md:flex-row justify-between items-center text-center md:text-left gap-4">
+        <div className="text-xs text-gray-500">
+           &copy; {new Date().getFullYear()} ALMA. Todos os direitos reservados.
+        </div>
+        <button 
+          onClick={() => onNavigate('login')} 
+          className="text-gray-800 hover:text-primary transition p-2"
+          title="Área Privada"
+        >
+           <Lock size={12} />
+        </button>
       </div>
     </footer>
   );

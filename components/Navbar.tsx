@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Menu, X, User } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 
 interface NavbarProps {
   onNavigate: (page: string) => void;
@@ -8,7 +8,7 @@ interface NavbarProps {
   logoUrl?: string;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentPage, isAdmin, logoUrl }) => {
+export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentPage, logoUrl }) => {
   const [isOpen, setIsOpen] = useState(false);
   
   const navItems = [
@@ -90,28 +90,8 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentPage, isAdmin
             </div>
           </div>
 
-          {/* Right Actions: Admin & Mobile Toggle */}
+          {/* Right Actions: Mobile Toggle Only */}
           <div className="flex items-center gap-4">
-             {/* Admin Desktop */}
-             <div className="hidden lg:block">
-                {isAdmin ? (
-                  <button
-                     onClick={() => handleNav('admin')}
-                     className="px-4 py-2 rounded-full text-sm font-montserrat font-extrabold bg-primary text-white hover:bg-orange-700 flex items-center gap-2 transition-transform hover:scale-105"
-                  >
-                    <User size={16} /> Admin
-                  </button>
-                ) : (
-                  <button
-                     onClick={() => handleNav('login')}
-                     className="text-gray-500 hover:text-white transition p-2"
-                     title="Área de Admin"
-                  >
-                    <User size={16} />
-                  </button>
-                )}
-             </div>
-
              {/* Mobile menu button */}
              <div className="lg:hidden">
                 <button
@@ -138,14 +118,6 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentPage, isAdmin
                 {item.label}
               </button>
             ))}
-            <div className="pt-4 px-3 pb-2">
-              <button
-                  onClick={() => handleNav(isAdmin ? 'admin' : 'login')}
-                  className={`w-full text-left py-3 rounded-md text-base font-bold flex items-center gap-2 ${isAdmin ? 'text-white bg-primary justify-center rounded-full' : 'text-neutral-500'}`}
-              >
-                <User size={16} /> {isAdmin ? 'Painel de Controlo' : 'Login Admin'}
-              </button>
-            </div>
           </div>
         </div>
       )}

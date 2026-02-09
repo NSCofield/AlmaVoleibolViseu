@@ -1291,7 +1291,7 @@ export default function App() {
       <main className="flex-grow">
         {renderContent()}
       </main>
-      {currentPage !== 'admin' && currentPage !== 'login' && <Footer content={siteContent['footer']} />}
+      {currentPage !== 'admin' && currentPage !== 'login' && <Footer content={siteContent['footer']} onNavigate={setCurrentPage} />}
     </div>
   );
 }
