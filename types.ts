@@ -41,6 +41,15 @@ export interface Team {
   image_url: string;
 }
 
+export interface TeamMember {
+  id: string;
+  team_id: string;
+  name: string;
+  number: string;
+  position: string; // Zona 4, Distribuidor, Libero, etc.
+  image_url: string;
+}
+
 export interface GalleryItem {
   id: string;
   title: string;

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './lib/supabase';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
-import { NewsItem, Match, Product, Partner, Team, GalleryItem, OrganizationMember, SiteContent } from './types';
+import { NewsItem, Match, Product, Partner, Team, TeamMember, GalleryItem, OrganizationMember, SiteContent } from './types';
 import { 
   Loader2, Calendar, MapPin, ShoppingBag, Users, 
   Info, Camera, Mail, Trophy, ArrowRight, ChevronRight, Edit, Trash, Plus, Save, Copy, Check,
@@ -175,7 +175,8 @@ interface ModalItem {
   title: string;
   subtitle?: string;
   description?: string;
-  price?: number; // Add price for product modal type
+  price?: number; 
+  members?: TeamMember[]; // Added for roster
 }
 
 const ImageModal = ({ items, initialIndex, isOpen, onClose }: { items: ModalItem[], initialIndex: number, isOpen: boolean, onClose: () => void }) => {
@@ -231,7 +232,7 @@ const ImageModal = ({ items, initialIndex, isOpen, onClose }: { items: ModalItem
         className="w-full h-full max-w-7xl flex flex-col md:flex-row bg-black overflow-hidden rounded-xl shadow-2xl border border-neutral-800" 
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex-1 bg-black flex items-center justify-center relative h-[50vh] md:h-full">
+        <div className="flex-1 bg-black flex items-center justify-center relative h-[40vh] md:h-full">
            <img 
               src={currentItem.image} 
               alt={currentItem.title} 
@@ -239,8 +240,8 @@ const ImageModal = ({ items, initialIndex, isOpen, onClose }: { items: ModalItem
            />
         </div>
 
-        <div className="w-full md:w-[400px] bg-neutral-900 border-l border-neutral-800 flex flex-col h-[50vh] md:h-full">
-           <div className="p-6 md:p-8 overflow-y-auto custom-scrollbar">
+        <div className="w-full md:w-[450px] bg-neutral-900 border-l border-neutral-800 flex flex-col h-[60vh] md:h-full">
+           <div className="p-6 md:p-8 overflow-y-auto custom-scrollbar flex-grow">
               {currentItem.subtitle && (
                 <div className="text-primary font-bold uppercase tracking-widest text-xs mb-2">
                    {currentItem.subtitle}
@@ -249,17 +250,36 @@ const ImageModal = ({ items, initialIndex, isOpen, onClose }: { items: ModalItem
               <h2 className="text-2xl md:text-3xl font-black italic text-white mb-6 leading-tight">
                  {currentItem.title}
               </h2>
-              {/* Special rendering for Product price if available in description/context or added to ModalItem */}
               
               {currentItem.description && (
                 <div 
-                  className="text-white leading-relaxed text-sm md:text-base space-y-4"
+                  className="text-white leading-relaxed text-sm md:text-base space-y-4 mb-8"
                   dangerouslySetInnerHTML={{__html: currentItem.description}}
                 ></div>
               )}
+
+              {/* Roster / Plantel Rendering */}
+              {currentItem.members && currentItem.members.length > 0 && (
+                <div className="border-t border-neutral-800 pt-6">
+                   <h3 className="text-primary font-bold uppercase tracking-widest text-sm mb-4 flex items-center gap-2">
+                      <Users size={16} /> Plantel
+                   </h3>
+                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                      {currentItem.members.map(member => (
+                        <div key={member.id} className="flex flex-col items-center bg-black p-3 rounded-lg border border-neutral-800 hover:border-primary transition group">
+                            <div className="w-16 h-16 rounded-full overflow-hidden mb-2 bg-neutral-800 border-2 border-neutral-700 group-hover:border-primary transition">
+                                <img src={member.image_url || `https://ui-avatars.com/api/?name=${member.name}&background=random`} alt={member.name} className="w-full h-full object-cover" />
+                            </div>
+                            <div className="font-bold text-white text-xs text-center leading-tight mb-1">{member.name}</div>
+                            <div className="text-[10px] text-primary font-bold uppercase">{member.number ? `#${member.number}` : ''} {member.position}</div>
+                        </div>
+                      ))}
+                   </div>
+                </div>
+              )}
            </div>
            
-           <div className="mt-auto p-4 border-t border-neutral-800 text-xs text-neutral-500 flex justify-between">
+           <div className="mt-auto p-4 border-t border-neutral-800 text-xs text-neutral-500 flex justify-between shrink-0">
               <span>ALMA Viseu</span>
               <span>{currentIndex + 1} / {items.length}</span>
            </div>
@@ -515,6 +535,7 @@ const LandingPage = ({
   products, 
   partners, 
   teams, 
+  teamMembers,
   gallery,
   heroContent, 
   siteContent
@@ -525,6 +546,7 @@ const LandingPage = ({
   products: Product[],
   partners: Partner[],
   teams: Team[],
+  teamMembers: TeamMember[],
   gallery: GalleryItem[],
   organization?: OrganizationMember[],
   heroContent: SiteContent | null,
@@ -562,13 +584,17 @@ const LandingPage = ({
         description: i.description
       }));
     } else if (type === 'team') {
-      formattedItems = items.map((i: Team) => ({
-        id: i.id,
-        image: i.image_url || `https://picsum.photos/seed/${i.id}/800/600`,
-        title: i.name,
-        subtitle: i.category,
-        description: i.description
-      }));
+      formattedItems = items.map((i: Team) => {
+        const roster = teamMembers.filter(m => m.team_id === i.id);
+        return {
+          id: i.id,
+          image: i.image_url || `https://picsum.photos/seed/${i.id}/800/600`,
+          title: i.name,
+          subtitle: i.category,
+          description: i.description,
+          members: roster
+        };
+      });
     } else if (type === 'gallery') {
       formattedItems = items.map((i: GalleryItem) => ({
         id: i.id,
@@ -844,6 +870,7 @@ export default function App() {
   const [products, setProducts] = useState<Product[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]); // New state for roster
   const [gallery, setGallery] = useState<GalleryItem[]>([]);
   const [organization, setOrganization] = useState<OrganizationMember[]>([]);
   const [siteContent, setSiteContent] = useState<Record<string, SiteContent>>({});
@@ -882,10 +909,11 @@ export default function App() {
         supabase.from('teams').select('*'),
         supabase.from('gallery').select('*'),
         supabase.from('organization').select('*').order('created_at', { ascending: true }),
-        supabase.from('site_content').select('*')
+        supabase.from('site_content').select('*'),
+        supabase.from('team_members').select('*') // Fetch roster
       ]);
 
-      const [newsRes, matchesRes, prodRes, partRes, teamRes, galRes, orgRes, contentRes] = responses;
+      const [newsRes, matchesRes, prodRes, partRes, teamRes, galRes, orgRes, contentRes, memberRes] = responses;
 
       if (newsRes.data) setNews(newsRes.data);
       if (matchesRes.data) setMatches(matchesRes.data);
@@ -894,6 +922,7 @@ export default function App() {
       if (teamRes.data) setTeams(teamRes.data);
       if (galRes.data) setGallery(galRes.data);
       if (orgRes.data) setOrganization(orgRes.data);
+      if (memberRes.data) setTeamMembers(memberRes.data);
       
       if (contentRes.data) {
         const contentMap: Record<string, SiteContent> = {};
@@ -1071,6 +1100,13 @@ export default function App() {
                           </div>
                       ) : f.type === 'datetime-local' ? (
                           <input type="datetime-local" className="w-full border p-2 rounded" value={formData[f.key] ? new Date(formData[f.key]).toISOString().slice(0, 16) : ''} onChange={e => setFormData({...formData, [f.key]: e.target.value})} required={f.required} />
+                      ) : f.type === 'select' ? (
+                          <select className="w-full border p-2 rounded bg-white" value={formData[f.key] || ''} onChange={e => setFormData({...formData, [f.key]: e.target.value})} required={f.required}>
+                             <option value="">Selecione...</option>
+                             {f.options?.map((opt: any) => (
+                               <option key={opt.value} value={opt.value}>{opt.label}</option>
+                             ))}
+                          </select>
                       ) : (
                         <input type={f.type || 'text'} className="w-full border p-2 rounded" value={formData[f.key] || ''} onChange={e => setFormData({...formData, [f.key]: e.target.value})} required={f.required} />
                       )}
@@ -1094,6 +1130,7 @@ export default function App() {
                         <td key={f.key} className="p-2 truncate max-w-[200px]">
                             {f.type === 'image' && item[f.key] ? <img src={item[f.key]} className="h-10 w-10 object-cover rounded" /> : 
                              (f.type === 'richtext' || f.type === 'textarea') ? stripHtml(item[f.key]) : 
+                             f.type === 'select' ? (f.options?.find((o: any) => o.value === item[f.key])?.label || item[f.key]) :
                              f.type === 'datetime-local' ? new Date(item[f.key]).toLocaleString('pt-PT') : item[f.key]?.toString()
                             }
                         </td>
@@ -1218,7 +1255,7 @@ export default function App() {
               <button onClick={() => setAdminTab('conteudo')} className={`w-full text-left p-2 rounded capitalize font-montserrat font-extrabold ${adminTab === 'conteudo' ? 'bg-primary text-white' : 'hover:bg-neutral-100 text-neutral-700'}`}>
                   <span className="flex items-center gap-2"><Layout size={16}/> Conteúdos</span>
               </button>
-              {['noticias', 'jogos', 'loja', 'parceiros', 'equipas', 'galeria', 'organograma', 'definições'].map(tab => (
+              {['noticias', 'jogos', 'loja', 'parceiros', 'equipas', 'atletas', 'galeria', 'organograma', 'definições'].map(tab => (
                 <button key={tab} onClick={() => setAdminTab(tab)} className={`w-full text-left p-2 rounded capitalize font-montserrat font-extrabold ${adminTab === tab ? 'bg-primary text-white' : 'hover:bg-neutral-100 text-neutral-700'}`}>
                   {tab === 'definições' ? <span className="flex items-center gap-2"><Settings size={16}/> Definições</span> : tab}
                 </button>
@@ -1236,6 +1273,7 @@ export default function App() {
               {adminTab === 'loja' && <AdminList title="Gerir Produtos" data={products} table="products" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'price', label: 'Preço', type: 'number', required: true}, {key: 'description', label: 'Descrição', type: 'richtext'}, {key: 'image_url', label: 'Imagem', type: 'image'}]} />}
               {adminTab === 'parceiros' && <AdminList title="Gerir Parceiros" data={partners} table="partners" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'website_url', label: 'Website'}, {key: 'logo_url', label: 'Logo', type: 'image'}]} />}
               {adminTab === 'equipas' && <AdminList title="Gerir Equipas" data={teams} table="teams" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'category', label: 'Escalão'}, {key: 'description', label: 'Descrição', type: 'richtext'}, {key: 'image_url', label: 'Foto', type: 'image'}]} />}
+              {adminTab === 'atletas' && <AdminList title="Gerir Atletas (Plantel)" data={teamMembers} table="team_members" fields={[{key: 'team_id', label: 'Equipa', type: 'select', required: true, options: teams.map(t => ({value: t.id, label: t.name}))}, {key: 'name', label: 'Nome', required: true}, {key: 'number', label: 'Número', type: 'number'}, {key: 'position', label: 'Posição'}, {key: 'image_url', label: 'Foto', type: 'image'}]} />}
               {adminTab === 'galeria' && <AdminList title="Gerir Fotos" data={gallery} table="gallery" fields={[{key: 'title', label: 'Título'}, {key: 'image_url', label: 'Imagem', type: 'image', required: true}]} />}
               {adminTab === 'organograma' && <AdminList title="Gerir Direção" data={organization} table="organization" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'role', label: 'Cargo', required: true}, {key: 'image_url', label: 'Foto', type: 'image'}]} />}
               {adminTab === 'definições' && <div className="p-4 bg-white rounded shadow text-neutral-500">Funcionalidades de sistema (Adicionar Admin / Reset DB) disponíveis no código original.</div>}
@@ -1282,7 +1320,7 @@ export default function App() {
       );
     }
 
-    return <LandingPage onNavigate={setCurrentPage} news={news} matches={matches} products={products} partners={partners} teams={teams} gallery={gallery} organization={organization} heroContent={siteContent['hero']} siteContent={siteContent} />;
+    return <LandingPage onNavigate={setCurrentPage} news={news} matches={matches} products={products} partners={partners} teams={teams} teamMembers={teamMembers} gallery={gallery} organization={organization} heroContent={siteContent['hero']} siteContent={siteContent} />;
   };
 
   return (
