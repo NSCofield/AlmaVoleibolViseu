@@ -61,11 +61,23 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentPage, isAdmin
   return (
     <nav className="bg-black/95 backdrop-blur-md text-white sticky top-0 z-50 border-b-2 border-primary shadow-2xl transition-all duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-center h-24 relative">
+        <div className="flex items-center justify-between h-24">
           
-          {/* Desktop Navigation - Centered */}
+          {/* Logo Section */}
+          <div className="flex-shrink-0 flex items-center cursor-pointer group" onClick={() => handleNav('home')}>
+             {logoUrl ? (
+               <img className="h-16 w-auto object-contain transition-transform group-hover:scale-105" src={logoUrl} alt="ALMA Logo" />
+             ) : (
+               <div className="flex flex-col items-start leading-none transition-transform group-hover:scale-105">
+                 <span className="font-montserrat font-extrabold text-3xl italic tracking-tighter text-primary">ALMA</span>
+                 <span className="text-[10px] font-bold tracking-[0.4em] uppercase text-white/80 ml-0.5">Voleibol</span>
+               </div>
+             )}
+          </div>
+
+          {/* Desktop Navigation */}
           <div className="hidden lg:block">
-            <div className="flex items-baseline space-x-2">
+            <div className="flex items-baseline space-x-1">
               {navItems.map((item) => (
                 <button
                   key={item.id}
@@ -75,40 +87,47 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentPage, isAdmin
                   {item.label}
                 </button>
               ))}
-              {isAdmin ? (
-                <button
-                   onClick={() => handleNav('admin')}
-                   className="ml-4 px-4 py-2 rounded-full text-sm font-montserrat font-extrabold bg-primary text-white hover:bg-orange-700 flex items-center gap-2 transition-transform hover:scale-105"
-                >
-                  <User size={16} /> Admin
-                </button>
-              ) : (
-                <button
-                   onClick={() => handleNav('login')}
-                   className="ml-2 text-gray-500 hover:text-white transition"
-                   title="Área de Admin"
-                >
-                  <User size={16} />
-                </button>
-              )}
             </div>
           </div>
-          
-          {/* Mobile menu button - Positioned absolutely to the right */}
-          <div className="absolute right-0 flex lg:hidden">
-            <button
-              onClick={() => setIsOpen(!isOpen)}
-              className="inline-flex items-center justify-center p-2 rounded-md text-primary hover:text-white hover:bg-gray-800 focus:outline-none"
-            >
-              {isOpen ? <X size={24} /> : <Menu size={24} />}
-            </button>
+
+          {/* Right Actions: Admin & Mobile Toggle */}
+          <div className="flex items-center gap-4">
+             {/* Admin Desktop */}
+             <div className="hidden lg:block">
+                {isAdmin ? (
+                  <button
+                     onClick={() => handleNav('admin')}
+                     className="px-4 py-2 rounded-full text-sm font-montserrat font-extrabold bg-primary text-white hover:bg-orange-700 flex items-center gap-2 transition-transform hover:scale-105"
+                  >
+                    <User size={16} /> Admin
+                  </button>
+                ) : (
+                  <button
+                     onClick={() => handleNav('login')}
+                     className="text-gray-500 hover:text-white transition p-2"
+                     title="Área de Admin"
+                  >
+                    <User size={16} />
+                  </button>
+                )}
+             </div>
+
+             {/* Mobile menu button */}
+             <div className="lg:hidden">
+                <button
+                  onClick={() => setIsOpen(!isOpen)}
+                  className="inline-flex items-center justify-center p-2 rounded-md text-primary hover:text-white hover:bg-gray-800 focus:outline-none"
+                >
+                  {isOpen ? <X size={24} /> : <Menu size={24} />}
+                </button>
+             </div>
           </div>
         </div>
       </div>
 
       {/* Mobile menu */}
       {isOpen && (
-        <div className="lg:hidden bg-black border-t border-gray-800">
+        <div className="lg:hidden bg-black border-t border-gray-800 animate-fade-in">
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
             {navItems.map((item) => (
               <button
@@ -119,10 +138,10 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentPage, isAdmin
                 {item.label}
               </button>
             ))}
-            <div className="pt-4">
+            <div className="pt-4 px-3 pb-2">
               <button
                   onClick={() => handleNav(isAdmin ? 'admin' : 'login')}
-                  className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-primary hover:text-white flex items-center gap-2"
+                  className={`w-full text-left py-3 rounded-md text-base font-bold flex items-center gap-2 ${isAdmin ? 'text-white bg-primary justify-center rounded-full' : 'text-neutral-500'}`}
               >
                 <User size={16} /> {isAdmin ? 'Painel de Controlo' : 'Login Admin'}
               </button>
