@@ -47,7 +47,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentPage, isAdmin
     { id: 'photos', label: 'Fotos' },
     { id: 'partners', label: 'Parceiros' },
     { id: 'shop', label: 'Loja' },
-    { id: 'about', label: 'Quem Somos' },
+    { id: 'about', label: 'Sobre' },
     { id: 'contacts', label: 'Contactos' },
   ];
 

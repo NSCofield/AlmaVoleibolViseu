@@ -7,7 +7,7 @@ interface FooterProps {
 }
 
 export const Footer: React.FC<FooterProps> = ({ content }) => {
-  const title = content?.title || "ALMA VISEU";
+  const title = content?.title || "";
   const description = content?.subtitle || "Promovendo o voleibol em Viseu com paixão, dedicação e espírito de equipa. Junta-te a nós e faz parte desta grande família.";
   const image = content?.image_url;
 
@@ -61,7 +61,7 @@ export const Footer: React.FC<FooterProps> = ({ content }) => {
       </div>
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-10 pt-6 border-t border-gray-800 text-center text-xs text-gray-500">
-        &copy; {new Date().getFullYear()} ALMA Viseu. Todos os direitos reservados.
+        &copy; {new Date().getFullYear()} ALMA. Todos os direitos reservados.
       </div>
     </footer>
   );

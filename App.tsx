@@ -56,7 +56,7 @@ const RichTextEditor = ({ value, onChange, className, placeholder }: { value: st
   };
 
   const fontList = [
-    "Inter", "Arial", "Arial Black", "Helvetica", "Verdana", "Tahoma", "Trebuchet MS", 
+    "Inter", "Montserrat", "Arial", "Arial Black", "Helvetica", "Verdana", "Tahoma", "Trebuchet MS", 
     "Times New Roman", "Georgia", "Garamond", "Courier New", "Brush Script MT", "Comic Sans MS", "Impact"
   ];
 
@@ -351,7 +351,7 @@ const AboutPage = ({ teams, organization }: { teams: Team[], organization: Organ
           <div className="mb-16">
              <h2 className="text-4xl font-black italic text-primary mb-8">ALMA VISEU</h2>
              <p className="text-xl text-neutral-300 leading-relaxed mb-8">
-                O <strong>ALMA Viseu</strong> é mais do que um clube de voleibol; é uma comunidade dedicada ao desenvolvimento desportivo e pessoal dos jovens de Viseu. 
+                O <strong>ALMA</strong> é mais do que um clube de voleibol, é uma comunidade dedicada ao desenvolvimento desportivo e pessoal dos jovens de Viseu. 
                 Fundado com a missão de revitalizar o voleibol na região centro, o clube tem crescido sustentadamente, promovendo valores como o respeito, a disciplina e o espírito de sacrifício.
               </p>
               <div className="grid grid-cols-3 gap-4 text-center">
@@ -459,7 +459,7 @@ const ContactsPage = ({ content }: { content: SiteContent | undefined }) => {
 
 // --- AUTOMATIC SCROLL MARQUEE CAROUSEL ---
 const PartnersMarquee = ({ partners }: { partners: Partner[] }) => {
-  if (partners.length === 0) return <p className="text-neutral-400 text-center w-full">Seja o nosso primeiro parceiro!</p>;
+  if (partners.length === 0) return <p className="text-neutral-400 text-center w-full">Seja nosso parceiro!</p>;
 
   // Ensure enough items for smooth scrolling on large screens
   // If we have few partners, duplicate them more times in the base list
@@ -478,7 +478,7 @@ const PartnersMarquee = ({ partners }: { partners: Partner[] }) => {
         .animate-marquee {
           display: flex;
           width: max-content;
-          animation: marquee 30s linear infinite;
+          animation: marquee 20s linear infinite;
         }
         .group:hover .animate-marquee,
         .group:active .animate-marquee {
