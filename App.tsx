@@ -806,7 +806,7 @@ const LandingPage = ({
             {teams.length === 0 && <p className="text-neutral-500 text-center w-full">Equipas a carregar...</p>}
           </SectionCarousel>
       </DynamicSection>
-
+      
       {/* GALLERY SECTION */}
       <section id="photos" className="py-4 bg-black">
         <DynamicSection id="photos-inner" content={siteContent['photos']} defaultClass="bg-black text-white" defaultTitle="Galeria">
@@ -905,7 +905,8 @@ export default function App() {
   const fetchAllData = async () => {
     setLoading(true);
     try {
-      const responses = await Promise.all([
+      // Fetch independent tables first
+      const [newsRes, matchesRes, prodRes, partRes, teamRes, galRes, orgRes, contentRes] = await Promise.all([
         supabase.from('news').select('*').order('created_at', { ascending: false }),
         supabase.from('matches').select('*').order('date', { ascending: true }),
         supabase.from('products').select('*'),
@@ -913,11 +914,8 @@ export default function App() {
         supabase.from('teams').select('*'),
         supabase.from('gallery').select('*'),
         supabase.from('organization').select('*').order('created_at', { ascending: true }),
-        supabase.from('site_content').select('*'),
-        supabase.from('team_members').select('*') // Fetch roster
+        supabase.from('site_content').select('*')
       ]);
-
-      const [newsRes, matchesRes, prodRes, partRes, teamRes, galRes, orgRes, contentRes, memberRes] = responses;
 
       if (newsRes.data) setNews(newsRes.data);
       if (matchesRes.data) setMatches(matchesRes.data);
@@ -926,7 +924,6 @@ export default function App() {
       if (teamRes.data) setTeams(teamRes.data);
       if (galRes.data) setGallery(galRes.data);
       if (orgRes.data) setOrganization(orgRes.data);
-      if (memberRes.data) setTeamMembers(memberRes.data);
       
       if (contentRes.data) {
         const contentMap: Record<string, SiteContent> = {};
@@ -935,6 +932,16 @@ export default function App() {
         });
         setSiteContent(contentMap);
       }
+
+      // Fetch team_members specifically and handle error
+      const memberRes = await supabase.from('team_members').select('*');
+      if (memberRes.error) {
+        console.error("Error fetching team_members:", memberRes.error);
+        // We continue without crushing the app, simply no members will be shown
+      } else if (memberRes.data) {
+        setTeamMembers(memberRes.data);
+      }
+
     } catch (e) {
       console.error("Error fetching data:", e);
     } finally {
@@ -1134,7 +1141,7 @@ export default function App() {
                         <td key={f.key} className="p-2 truncate max-w-[200px]">
                             {f.type === 'image' && item[f.key] ? <img src={item[f.key]} className="h-10 w-10 object-cover rounded" /> : 
                              (f.type === 'richtext' || f.type === 'textarea') ? stripHtml(item[f.key]) : 
-                             f.type === 'select' ? (f.options?.find((o: any) => o.value === item[f.key])?.label || item[f.key]) :
+                             f.type === 'select' ? (f.options?.find((o: any) => String(o.value) === String(item[f.key]))?.label || item[f.key]) :
                              f.type === 'datetime-local' ? new Date(item[f.key]).toLocaleString('pt-PT') : item[f.key]?.toString()
                             }
                         </td>
