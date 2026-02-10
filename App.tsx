@@ -258,23 +258,27 @@ const ImageModal = ({ items, initialIndex, isOpen, onClose }: { items: ModalItem
                 ></div>
               )}
 
-              {/* Roster / Plantel Rendering */}
-              {currentItem.members && currentItem.members.length > 0 && (
+              {/* Roster / Plantel Rendering - UPDATED TO SHOW EMPTY STATE */}
+              {currentItem.members && (
                 <div className="border-t border-neutral-800 pt-6">
                    <h3 className="text-primary font-bold uppercase tracking-widest text-sm mb-4 flex items-center gap-2">
                       <Users size={16} /> Plantel
                    </h3>
-                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                      {currentItem.members.map(member => (
-                        <div key={member.id} className="flex flex-col items-center bg-black p-3 rounded-lg border border-neutral-800 hover:border-primary transition group">
-                            <div className="w-16 h-16 rounded-full overflow-hidden mb-2 bg-neutral-800 border-2 border-neutral-700 group-hover:border-primary transition">
-                                <img src={member.image_url || `https://ui-avatars.com/api/?name=${member.name}&background=random`} alt={member.name} className="w-full h-full object-cover" />
+                   {currentItem.members.length > 0 ? (
+                      <div className="grid grid-cols-3 gap-3">
+                          {currentItem.members.map(member => (
+                            <div key={member.id} className="flex flex-col items-center bg-black p-2 rounded-lg border border-neutral-800 hover:border-primary transition group">
+                                <div className="w-12 h-12 rounded-full overflow-hidden mb-2 bg-neutral-800 border-2 border-neutral-700 group-hover:border-primary transition">
+                                    <img src={member.image_url || `https://ui-avatars.com/api/?name=${member.name}&background=random`} alt={member.name} className="w-full h-full object-cover" />
+                                </div>
+                                <div className="font-bold text-white text-[10px] text-center leading-tight w-full truncate" title={member.name}>{member.name}</div>
+                                <div className="text-[9px] text-primary font-bold uppercase">{member.number ? `#${member.number}` : ''} {member.position}</div>
                             </div>
-                            <div className="font-bold text-white text-xs text-center leading-tight mb-1">{member.name}</div>
-                            <div className="text-[10px] text-primary font-bold uppercase">{member.number ? `#${member.number}` : ''} {member.position}</div>
-                        </div>
-                      ))}
-                   </div>
+                          ))}
+                       </div>
+                   ) : (
+                       <p className="text-neutral-500 text-sm italic">Plantel a anunciar brevemente.</p>
+                   )}
                 </div>
               )}
            </div>
@@ -585,7 +589,7 @@ const LandingPage = ({
       }));
     } else if (type === 'team') {
       formattedItems = items.map((i: Team) => {
-        const roster = teamMembers.filter(m => m.team_id === i.id);
+        const roster = teamMembers ? teamMembers.filter(m => m.team_id === i.id) : [];
         return {
           id: i.id,
           image: i.image_url || `https://picsum.photos/seed/${i.id}/800/600`,
