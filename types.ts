@@ -39,6 +39,7 @@ export interface Team {
   category: string; // e.g., Séniores Masculinos, Iniciados
   description: string;
   image_url: string;
+  coaches?: string;
 }
 
 export interface TeamMember {

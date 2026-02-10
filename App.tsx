@@ -8,7 +8,7 @@ import {
   Info, Camera, Mail, Trophy, ArrowRight, ChevronRight, Edit, Trash, Plus, Save, Copy, Check,
   LogIn, UserPlus, Upload, Image as ImageIcon, Settings, Phone, Home, Layout, FileText,
   Bold, Italic, Underline, Type, Palette, AlignLeft, AlignCenter, AlignRight, List, ListOrdered, Highlighter,
-  X, ChevronLeft
+  X, ChevronLeft, Database, ShieldCheck, AlertTriangle, Lock
 } from 'lucide-react';
 
 // --- HELPER: Strip HTML for previews ---
@@ -177,6 +177,7 @@ interface ModalItem {
   description?: string;
   price?: number; 
   members?: TeamMember[]; // Added for roster
+  coaches?: string; // Coaches field
 }
 
 const ImageModal = ({ items, initialIndex, isOpen, onClose }: { items: ModalItem[], initialIndex: number, isOpen: boolean, onClose: () => void }) => {
@@ -256,6 +257,17 @@ const ImageModal = ({ items, initialIndex, isOpen, onClose }: { items: ModalItem
                   className="text-white leading-relaxed text-sm md:text-base space-y-4 mb-8"
                   dangerouslySetInnerHTML={{__html: currentItem.description}}
                 ></div>
+              )}
+              
+              {/* Coaches Section */}
+              {currentItem.coaches && (
+                <div className="mb-8 border-l-4 border-primary pl-4">
+                   <h3 className="text-primary font-bold uppercase tracking-widest text-xs mb-1">Equipa Técnica</h3>
+                   <div 
+                     className="text-white text-base font-bold whitespace-pre-wrap"
+                     dangerouslySetInnerHTML={{__html: currentItem.coaches}}
+                   ></div>
+                </div>
               )}
 
               {/* Roster / Plantel Rendering - UPDATED TO SHOW EMPTY STATE */}
@@ -596,6 +608,7 @@ const LandingPage = ({
           title: i.name,
           subtitle: undefined, // Removed category
           description: i.description,
+          coaches: i.coaches,
           members: roster
         };
       });
@@ -864,6 +877,317 @@ const LandingPage = ({
   );
 };
 
+// --- ADMIN COMPONENTS (Moved outside App to prevent remounts) ---
+
+const AdminList = ({ title, data, table, fields, onCreate, onUpdate, onDelete }: { title: string, data: any[], table: string, fields: any[], onCreate: Function, onUpdate: Function, onDelete: Function }) => {
+    const [isAdding, setIsAdding] = useState(false);
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [formData, setFormData] = useState<any>({});
+    const [files, setFiles] = useState<Record<string, File>>({});
+    const [previews, setPreviews] = useState<Record<string, string>>({});
+    const [uploading, setUploading] = useState(false);
+
+    const handleFileChange = (key: string, e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0]) {
+          const file = e.target.files[0];
+          setFiles(prev => ({ ...prev, [key]: file }));
+          setPreviews(prev => ({ ...prev, [key]: URL.createObjectURL(file) }));
+      }
+    };
+
+    const handleEdit = (item: any) => {
+      setFormData(item);
+      setEditingId(item.id);
+      const newPreviews: any = {};
+      fields.forEach(f => {
+         if(f.type === 'image' && item[f.key]) newPreviews[f.key] = item[f.key];
+      });
+      setPreviews(newPreviews);
+      setFiles({});
+      setIsAdding(true);
+    };
+
+    const handleAddNew = () => {
+      setEditingId(null);
+      setFormData({});
+      setFiles({});
+      setPreviews({});
+      setIsAdding(!isAdding);
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setUploading(true);
+      try {
+        const finalData = { ...formData };
+        delete finalData.id;
+        delete finalData.created_at;
+
+        for (const key of Object.keys(files)) {
+            const file = files[key];
+            if (file) {
+              const fileExt = file.name.split('.').pop();
+              const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+              const { error: uploadError } = await supabase.storage.from('images').upload(fileName, file);
+              if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
+              const { data: { publicUrl } } = supabase.storage.from('images').getPublicUrl(fileName);
+              finalData[key] = publicUrl;
+            }
+        }
+
+        if (editingId) await onUpdate(table, editingId, finalData);
+        else await onCreate(table, finalData);
+        
+        setIsAdding(false);
+        setEditingId(null);
+        setFormData({});
+        setFiles({});
+        setPreviews({});
+      } catch (err: any) {
+        alert("Erro: " + (err.message || "Erro desconhecido"));
+      } finally {
+        setUploading(false);
+      }
+    };
+
+    return (
+      <div className="bg-white p-6 rounded shadow mb-8 text-black">
+        <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-bold">{title}</h3>
+            <button onClick={handleAddNew} className="bg-green-600 text-white px-3 py-1 rounded text-sm flex items-center gap-1">
+              {isAdding && !editingId ? <X size={16} /> : <Plus size={16} />} 
+              {isAdding && !editingId ? 'Cancelar' : 'Adicionar'}
+            </button>
+        </div>
+        {isAdding && (
+          <div className="mb-6 p-4 bg-neutral-100 border rounded space-y-3 relative">
+            <div className="text-xs font-bold text-primary mb-2 uppercase tracking-wider">{editingId ? 'Editar Item' : 'Adicionar Novo'}</div>
+            {editingId && <button onClick={() => { setIsAdding(false); setEditingId(null); }} className="absolute top-2 right-2 text-neutral-400 hover:text-black"><X size={16}/></button>}
+            
+            <form onSubmit={handleSubmit} className="space-y-3">
+              {fields.map(f => (
+                <div key={f.key}>
+                  <label className="block text-xs font-bold uppercase text-neutral-500 mb-1">{f.label}</label>
+                  {f.type === 'textarea' || f.type === 'richtext' ? (
+                    <RichTextEditor value={formData[f.key] || ''} onChange={val => setFormData({...formData, [f.key]: val})} />
+                  ) : f.type === 'image' ? (
+                      <div className="space-y-2">
+                        {previews[f.key] && <img src={previews[f.key]} alt="Preview" className="h-20 w-auto rounded border" />}
+                        <input type="file" accept="image/*" className="w-full text-sm" onChange={(e) => handleFileChange(f.key, e)} required={!editingId && f.required} />
+                      </div>
+                  ) : f.type === 'datetime-local' ? (
+                      <input type="datetime-local" className="w-full border p-2 rounded" value={formData[f.key] ? new Date(formData[f.key]).toISOString().slice(0, 16) : ''} onChange={e => setFormData({...formData, [f.key]: e.target.value})} required={f.required} />
+                  ) : f.type === 'select' ? (
+                      <select className="w-full border p-2 rounded bg-white" value={formData[f.key] || ''} onChange={e => setFormData({...formData, [f.key]: e.target.value})} required={f.required}>
+                         <option value="">Selecione...</option>
+                         {f.options?.map((opt: any) => (
+                           <option key={opt.value} value={opt.value}>{opt.label}</option>
+                         ))}
+                      </select>
+                  ) : (
+                    <input type={f.type || 'text'} className="w-full border p-2 rounded" value={formData[f.key] || ''} onChange={e => setFormData({...formData, [f.key]: e.target.value})} required={f.required} />
+                  )}
+                </div>
+              ))}
+              <button disabled={uploading} className="bg-primary text-white px-4 py-2 rounded font-bold text-sm w-full md:w-auto">
+                {uploading ? 'A guardar...' : 'Guardar'}
+              </button>
+            </form>
+          </div>
+        )}
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead className="bg-neutral-100">
+              <tr>{fields.slice(0, 3).map(f => <th key={f.key} className="p-2 text-left">{f.label}</th>)}<th className="p-2 w-24 text-right">Ações</th></tr>
+            </thead>
+            <tbody>
+              {data.map(item => (
+                <tr key={item.id} className="border-b hover:bg-neutral-50">
+                  {fields.slice(0, 3).map(f => (
+                    <td key={f.key} className="p-2 truncate max-w-[200px]">
+                        {f.type === 'image' && item[f.key] ? <img src={item[f.key]} className="h-10 w-10 object-cover rounded" /> : 
+                         (f.type === 'richtext' || f.type === 'textarea') ? stripHtml(item[f.key]) : 
+                         f.type === 'select' ? (f.options?.find((o: any) => String(o.value) === String(item[f.key]))?.label || item[f.key]) :
+                         f.type === 'datetime-local' ? new Date(item[f.key]).toLocaleString('pt-PT') : item[f.key]?.toString()
+                        }
+                    </td>
+                  ))}
+                  <td className="p-2 text-right space-x-2">
+                    <button onClick={() => handleEdit(item)} className="text-blue-600 hover:text-blue-800" title="Editar"><Edit size={16} /></button>
+                    <button onClick={() => onDelete(table, item.id)} className="text-red-600 hover:text-red-800" title="Eliminar"><Trash size={16} /></button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+};
+
+const SiteContentEditor = ({ siteContent, onUpdate }: { siteContent: Record<string, SiteContent>, onUpdate: Function }) => {
+  const sections = [
+    { id: 'hero', label: 'Início (Hero)' },
+    { id: 'branding', label: 'Logótipo & Branding' },
+    { id: 'footer', label: 'Rodapé (Sobre)' },
+    { id: 'news', label: 'Notícias' },
+    { id: 'calendar', label: 'Calendário' },
+    { id: 'teams', label: 'Equipas' },
+    { id: 'shop', label: 'Loja' },
+    { id: 'partners', label: 'Parceiros' },
+    { id: 'photos', label: 'Galeria' },
+    { id: 'contacts', label: 'Contactos' },
+  ];
+  
+  const [selectedSection, setSelectedSection] = useState('hero');
+  const [title, setTitle] = useState('');
+  const [subtitle, setSubtitle] = useState('');
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+     const current = siteContent[selectedSection];
+     setTitle(current?.title || '');
+     setSubtitle(current?.subtitle || '');
+     setPreview(current?.image_url || null);
+     setFile(null);
+  }, [selectedSection, siteContent]);
+
+  const handleSave = async () => {
+    setUploading(true);
+    await onUpdate(selectedSection, title, subtitle, file);
+    setUploading(false);
+  };
+
+  return (
+    <div className="bg-white p-6 rounded shadow text-black max-w-2xl">
+       <h3 className="text-xl font-bold mb-6 border-b pb-2">Editar Conteúdo do Site</h3>
+       
+       <div className="mb-6">
+         <label className="block text-sm font-bold text-neutral-600 mb-1">Escolher Secção</label>
+         <select value={selectedSection} onChange={(e) => setSelectedSection(e.target.value)} className="w-full border p-2 rounded bg-neutral-50 font-bold">
+           {sections.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+         </select>
+       </div>
+
+       <div className="space-y-4">
+          {selectedSection === 'branding' ? (
+            <div>
+               <p className="text-sm text-neutral-500 mb-4 bg-yellow-50 p-3 rounded border border-yellow-200">
+                 Aqui podes alterar o logótipo do site. O título e subtítulo serão ignorados nesta secção.
+               </p>
+            </div>
+          ) : (
+            <>
+              <div>
+                <label className="block text-sm font-bold text-neutral-600 mb-1">Título da Secção</label>
+                <RichTextEditor value={title} onChange={setTitle} />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-neutral-600 mb-1">Subtítulo / Descrição</label>
+                <RichTextEditor value={subtitle} onChange={setSubtitle} />
+              </div>
+            </>
+          )}
+          
+          <div>
+            <label className="block text-sm font-bold text-neutral-600 mb-1">
+              {selectedSection === 'branding' ? 'Imagem do Logótipo' : 'Imagem de Fundo'}
+            </label>
+            <input type="file" accept="image/*" onChange={(e) => {
+              if (e.target.files?.[0]) {
+                setFile(e.target.files[0]);
+                setPreview(URL.createObjectURL(e.target.files[0]));
+              }
+            }} className="w-full mb-2" />
+            {preview && (
+              <div className={`relative rounded overflow-hidden border ${selectedSection === 'branding' ? 'w-32 h-32 bg-black flex items-center justify-center' : 'h-48 w-full'}`}>
+                 <img src={preview} alt="Preview" className={`max-w-full max-h-full ${selectedSection === 'branding' ? 'object-contain' : 'object-cover'}`} />
+                 {file && <div className="absolute top-2 right-2 bg-yellow-500 text-black text-xs font-bold px-2 py-1 rounded">Nova Imagem</div>}
+              </div>
+            )}
+            <p className="text-xs text-neutral-400 mt-1">Se não escolheres imagem, será usada a padrão.</p>
+          </div>
+          <button onClick={handleSave} disabled={uploading} className="bg-primary text-white px-6 py-2 rounded font-bold hover:bg-orange-700 transition">
+            {uploading ? 'A guardar...' : 'Guardar Alterações'}
+          </button>
+       </div>
+    </div>
+  );
+};
+
+// --- DATABASE FIX TOOL ---
+const DatabaseFixTool = () => {
+  const sqlScript = `
+-- Atualização de Schema (Novos Campos)
+alter table teams add column if not exists coaches text;
+
+-- Habilitar RLS em todas as tabelas
+alter table news enable row level security;
+alter table matches enable row level security;
+alter table products enable row level security;
+alter table partners enable row level security;
+alter table teams enable row level security;
+alter table team_members enable row level security;
+alter table gallery enable row level security;
+alter table organization enable row level security;
+alter table site_content enable row level security;
+
+-- Política para Leitura Pública (Anónima)
+create policy "Public Read News" on news for select using (true);
+create policy "Public Read Matches" on matches for select using (true);
+create policy "Public Read Products" on products for select using (true);
+create policy "Public Read Partners" on partners for select using (true);
+create policy "Public Read Teams" on teams for select using (true);
+create policy "Public Read TeamMembers" on team_members for select using (true);
+create policy "Public Read Gallery" on gallery for select using (true);
+create policy "Public Read Org" on organization for select using (true);
+create policy "Public Read Content" on site_content for select using (true);
+
+-- Política para Escrita (Apenas Autenticado)
+create policy "Admin Write News" on news for all using (auth.role() = 'authenticated');
+create policy "Admin Write Matches" on matches for all using (auth.role() = 'authenticated');
+create policy "Admin Write Products" on products for all using (auth.role() = 'authenticated');
+create policy "Admin Write Partners" on partners for all using (auth.role() = 'authenticated');
+create policy "Admin Write Teams" on teams for all using (auth.role() = 'authenticated');
+create policy "Admin Write TeamMembers" on team_members for all using (auth.role() = 'authenticated');
+create policy "Admin Write Gallery" on gallery for all using (auth.role() = 'authenticated');
+create policy "Admin Write Org" on organization for all using (auth.role() = 'authenticated');
+create policy "Admin Write Content" on site_content for all using (auth.role() = 'authenticated');
+  `;
+
+  return (
+    <div className="bg-white p-6 rounded shadow max-w-3xl">
+      <div className="flex items-center gap-2 mb-4 text-primary">
+        <AlertTriangle size={24} />
+        <h3 className="text-xl font-bold">Reparação de Base de Dados</h3>
+      </div>
+      <p className="mb-4 text-sm text-neutral-600">
+        Se os dados (como Atletas) existem no Supabase mas não aparecem aqui ou no site, é provável que faltem as 
+        <strong> Políticas de Segurança (RLS)</strong> corretas.
+      </p>
+      <p className="mb-4 text-sm text-neutral-600">
+        Copie o código SQL abaixo e execute-o no <strong>SQL Editor</strong> do seu painel Supabase para corrigir as permissões.
+      </p>
+      <div className="relative bg-neutral-900 text-green-400 p-4 rounded text-xs font-mono h-64 overflow-y-auto mb-4 border border-neutral-700">
+        <pre>{sqlScript}</pre>
+        <button 
+          onClick={() => navigator.clipboard.writeText(sqlScript).then(() => alert("Copiado!"))}
+          className="absolute top-2 right-2 bg-neutral-700 text-white p-1 rounded hover:bg-neutral-600"
+          title="Copiar SQL"
+        >
+          <Copy size={16} />
+        </button>
+      </div>
+      <div className="flex items-center gap-2 text-xs text-neutral-400">
+        <Info size={14} />
+        <span>Isto ativará o acesso público para leitura e acesso privado para edição em todas as tabelas.</span>
+      </div>
+    </div>
+  );
+};
+
 export default function App() {
   const [currentPage, setCurrentPage] = useState('home');
   const [session, setSession] = useState<any>(null);
@@ -1013,244 +1337,6 @@ export default function App() {
   };
 
   const renderAdmin = () => {
-    const AdminList = ({ title, data, table, fields }: { title: string, data: any[], table: string, fields: any[] }) => {
-        const [isAdding, setIsAdding] = useState(false);
-        const [editingId, setEditingId] = useState<string | null>(null);
-        const [formData, setFormData] = useState<any>({});
-        const [files, setFiles] = useState<Record<string, File>>({});
-        const [previews, setPreviews] = useState<Record<string, string>>({});
-        const [uploading, setUploading] = useState(false);
-
-        const handleFileChange = (key: string, e: React.ChangeEvent<HTMLInputElement>) => {
-          if (e.target.files && e.target.files[0]) {
-              const file = e.target.files[0];
-              setFiles(prev => ({ ...prev, [key]: file }));
-              setPreviews(prev => ({ ...prev, [key]: URL.createObjectURL(file) }));
-          }
-        };
-
-        const handleEdit = (item: any) => {
-          setFormData(item);
-          setEditingId(item.id);
-          const newPreviews: any = {};
-          fields.forEach(f => {
-             if(f.type === 'image' && item[f.key]) newPreviews[f.key] = item[f.key];
-          });
-          setPreviews(newPreviews);
-          setFiles({});
-          setIsAdding(true);
-        };
-
-        const handleAddNew = () => {
-          setEditingId(null);
-          setFormData({});
-          setFiles({});
-          setPreviews({});
-          setIsAdding(!isAdding);
-        };
-
-        const handleSubmit = async (e: React.FormEvent) => {
-          e.preventDefault();
-          setUploading(true);
-          try {
-            const finalData = { ...formData };
-            delete finalData.id;
-            delete finalData.created_at;
-
-            for (const key of Object.keys(files)) {
-                const file = files[key];
-                if (file) {
-                  const fileExt = file.name.split('.').pop();
-                  const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-                  const { error: uploadError } = await supabase.storage.from('images').upload(fileName, file);
-                  if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
-                  const { data: { publicUrl } } = supabase.storage.from('images').getPublicUrl(fileName);
-                  finalData[key] = publicUrl;
-                }
-            }
-
-            if (editingId) await updateItem(table, editingId, finalData);
-            else await createItem(table, finalData);
-            
-            setIsAdding(false);
-            setEditingId(null);
-            setFormData({});
-            setFiles({});
-            setPreviews({});
-          } catch (err: any) {
-            alert("Erro: " + (err.message || "Erro desconhecido"));
-          } finally {
-            setUploading(false);
-          }
-        };
-
-        return (
-          <div className="bg-white p-6 rounded shadow mb-8 text-black">
-            <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-bold">{title}</h3>
-                <button onClick={handleAddNew} className="bg-green-600 text-white px-3 py-1 rounded text-sm flex items-center gap-1">
-                  {isAdding && !editingId ? <X size={16} /> : <Plus size={16} />} 
-                  {isAdding && !editingId ? 'Cancelar' : 'Adicionar'}
-                </button>
-            </div>
-            {isAdding && (
-              <div className="mb-6 p-4 bg-neutral-100 border rounded space-y-3 relative">
-                <div className="text-xs font-bold text-primary mb-2 uppercase tracking-wider">{editingId ? 'Editar Item' : 'Adicionar Novo'}</div>
-                {editingId && <button onClick={() => { setIsAdding(false); setEditingId(null); }} className="absolute top-2 right-2 text-neutral-400 hover:text-black"><X size={16}/></button>}
-                
-                <form onSubmit={handleSubmit} className="space-y-3">
-                  {fields.map(f => (
-                    <div key={f.key}>
-                      <label className="block text-xs font-bold uppercase text-neutral-500 mb-1">{f.label}</label>
-                      {f.type === 'textarea' || f.type === 'richtext' ? (
-                        <RichTextEditor value={formData[f.key] || ''} onChange={val => setFormData({...formData, [f.key]: val})} />
-                      ) : f.type === 'image' ? (
-                          <div className="space-y-2">
-                            {previews[f.key] && <img src={previews[f.key]} alt="Preview" className="h-20 w-auto rounded border" />}
-                            <input type="file" accept="image/*" className="w-full text-sm" onChange={(e) => handleFileChange(f.key, e)} required={!editingId && f.required} />
-                          </div>
-                      ) : f.type === 'datetime-local' ? (
-                          <input type="datetime-local" className="w-full border p-2 rounded" value={formData[f.key] ? new Date(formData[f.key]).toISOString().slice(0, 16) : ''} onChange={e => setFormData({...formData, [f.key]: e.target.value})} required={f.required} />
-                      ) : f.type === 'select' ? (
-                          <select className="w-full border p-2 rounded bg-white" value={formData[f.key] || ''} onChange={e => setFormData({...formData, [f.key]: e.target.value})} required={f.required}>
-                             <option value="">Selecione...</option>
-                             {f.options?.map((opt: any) => (
-                               <option key={opt.value} value={opt.value}>{opt.label}</option>
-                             ))}
-                          </select>
-                      ) : (
-                        <input type={f.type || 'text'} className="w-full border p-2 rounded" value={formData[f.key] || ''} onChange={e => setFormData({...formData, [f.key]: e.target.value})} required={f.required} />
-                      )}
-                    </div>
-                  ))}
-                  <button disabled={uploading} className="bg-primary text-white px-4 py-2 rounded font-bold text-sm w-full md:w-auto">
-                    {uploading ? 'A guardar...' : 'Guardar'}
-                  </button>
-                </form>
-              </div>
-            )}
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead className="bg-neutral-100">
-                  <tr>{fields.slice(0, 3).map(f => <th key={f.key} className="p-2 text-left">{f.label}</th>)}<th className="p-2 w-24 text-right">Ações</th></tr>
-                </thead>
-                <tbody>
-                  {data.map(item => (
-                    <tr key={item.id} className="border-b hover:bg-neutral-50">
-                      {fields.slice(0, 3).map(f => (
-                        <td key={f.key} className="p-2 truncate max-w-[200px]">
-                            {f.type === 'image' && item[f.key] ? <img src={item[f.key]} className="h-10 w-10 object-cover rounded" /> : 
-                             (f.type === 'richtext' || f.type === 'textarea') ? stripHtml(item[f.key]) : 
-                             f.type === 'select' ? (f.options?.find((o: any) => String(o.value) === String(item[f.key]))?.label || item[f.key]) :
-                             f.type === 'datetime-local' ? new Date(item[f.key]).toLocaleString('pt-PT') : item[f.key]?.toString()
-                            }
-                        </td>
-                      ))}
-                      <td className="p-2 text-right space-x-2">
-                        <button onClick={() => handleEdit(item)} className="text-blue-600 hover:text-blue-800" title="Editar"><Edit size={16} /></button>
-                        <button onClick={() => deleteItem(table, item.id)} className="text-red-600 hover:text-red-800" title="Eliminar"><Trash size={16} /></button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        );
-    };
-
-    const SiteContentEditor = () => {
-      const sections = [
-        { id: 'hero', label: 'Início (Hero)' },
-        { id: 'branding', label: 'Logótipo & Branding' },
-        { id: 'footer', label: 'Rodapé (Sobre)' },
-        { id: 'news', label: 'Notícias' },
-        { id: 'calendar', label: 'Calendário' },
-        { id: 'teams', label: 'Equipas' },
-        { id: 'shop', label: 'Loja' },
-        { id: 'partners', label: 'Parceiros' },
-        { id: 'photos', label: 'Galeria' },
-        { id: 'contacts', label: 'Contactos' },
-      ];
-      
-      const [selectedSection, setSelectedSection] = useState('hero');
-      const [title, setTitle] = useState('');
-      const [subtitle, setSubtitle] = useState('');
-      const [file, setFile] = useState<File | null>(null);
-      const [preview, setPreview] = useState<string | null>(null);
-      const [uploading, setUploading] = useState(false);
-
-      useEffect(() => {
-         const current = siteContent[selectedSection];
-         setTitle(current?.title || '');
-         setSubtitle(current?.subtitle || '');
-         setPreview(current?.image_url || null);
-         setFile(null);
-      }, [selectedSection, siteContent]);
-
-      const handleSave = async () => {
-        setUploading(true);
-        await updateSectionContent(selectedSection, title, subtitle, file);
-        setUploading(false);
-      };
-
-      return (
-        <div className="bg-white p-6 rounded shadow text-black max-w-2xl">
-           <h3 className="text-xl font-bold mb-6 border-b pb-2">Editar Conteúdo do Site</h3>
-           
-           <div className="mb-6">
-             <label className="block text-sm font-bold text-neutral-600 mb-1">Escolher Secção</label>
-             <select value={selectedSection} onChange={(e) => setSelectedSection(e.target.value)} className="w-full border p-2 rounded bg-neutral-50 font-bold">
-               {sections.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-             </select>
-           </div>
-
-           <div className="space-y-4">
-              {selectedSection === 'branding' ? (
-                <div>
-                   <p className="text-sm text-neutral-500 mb-4 bg-yellow-50 p-3 rounded border border-yellow-200">
-                     Aqui podes alterar o logótipo do site. O título e subtítulo serão ignorados nesta secção.
-                   </p>
-                </div>
-              ) : (
-                <>
-                  <div>
-                    <label className="block text-sm font-bold text-neutral-600 mb-1">Título da Secção</label>
-                    <RichTextEditor value={title} onChange={setTitle} />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-neutral-600 mb-1">Subtítulo / Descrição</label>
-                    <RichTextEditor value={subtitle} onChange={setSubtitle} />
-                  </div>
-                </>
-              )}
-              
-              <div>
-                <label className="block text-sm font-bold text-neutral-600 mb-1">
-                  {selectedSection === 'branding' ? 'Imagem do Logótipo' : 'Imagem de Fundo'}
-                </label>
-                <input type="file" accept="image/*" onChange={(e) => {
-                  if (e.target.files?.[0]) {
-                    setFile(e.target.files[0]);
-                    setPreview(URL.createObjectURL(e.target.files[0]));
-                  }
-                }} className="w-full mb-2" />
-                {preview && (
-                  <div className={`relative rounded overflow-hidden border ${selectedSection === 'branding' ? 'w-32 h-32 bg-black flex items-center justify-center' : 'h-48 w-full'}`}>
-                     <img src={preview} alt="Preview" className={`max-w-full max-h-full ${selectedSection === 'branding' ? 'object-contain' : 'object-cover'}`} />
-                     {file && <div className="absolute top-2 right-2 bg-yellow-500 text-black text-xs font-bold px-2 py-1 rounded">Nova Imagem</div>}
-                  </div>
-                )}
-                <p className="text-xs text-neutral-400 mt-1">Se não escolheres imagem, será usada a padrão.</p>
-              </div>
-              <button onClick={handleSave} disabled={uploading} className="bg-primary text-white px-6 py-2 rounded font-bold hover:bg-orange-700 transition">
-                {uploading ? 'A guardar...' : 'Guardar Alterações'}
-              </button>
-           </div>
-        </div>
-      );
-    }
-
     return (
       <div className="min-h-screen bg-neutral-100 text-black">
         <nav className="bg-black text-white p-4 flex justify-between items-center border-b-4 border-primary">
@@ -1278,16 +1364,16 @@ export default function App() {
           </div>
           <div className="flex-1 p-8 overflow-y-auto bg-neutral-50">
               <h2 className="text-3xl font-bold mb-6 capitalize text-secondary">{adminTab}</h2>
-              {adminTab === 'conteudo' && <SiteContentEditor />}
-              {adminTab === 'noticias' && <AdminList title="Gerir Notícias" data={news} table="news" fields={[{key: 'title', label: 'Título', required: true}, {key: 'content', label: 'Conteúdo', type: 'richtext'}, {key: 'image_url', label: 'Imagem', type: 'image'}]} />}
-              {adminTab === 'jogos' && <AdminList title="Gerir Jogos" data={matches} table="matches" fields={[{key: 'home_team', label: 'Equipa Casa', required: true}, {key: 'guest_team', label: 'Equipa Fora', required: true}, {key: 'date', label: 'Data', type: 'datetime-local', required: true}, {key: 'location', label: 'Local'}, {key: 'category', label: 'Escalão'}, {key: 'score_home', label: 'Pontos Casa', type: 'number'}, {key: 'score_guest', label: 'Pontos Fora', type: 'number'}]} />}
-              {adminTab === 'loja' && <AdminList title="Gerir Produtos" data={products} table="products" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'price', label: 'Preço', type: 'number', required: true}, {key: 'description', label: 'Descrição', type: 'richtext'}, {key: 'image_url', label: 'Imagem', type: 'image'}]} />}
-              {adminTab === 'parceiros' && <AdminList title="Gerir Parceiros" data={partners} table="partners" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'website_url', label: 'Website'}, {key: 'logo_url', label: 'Logo', type: 'image'}]} />}
-              {adminTab === 'equipas' && <AdminList title="Gerir Equipas" data={teams} table="teams" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'category', label: 'Escalão'}, {key: 'description', label: 'Descrição', type: 'richtext'}, {key: 'image_url', label: 'Foto', type: 'image'}]} />}
-              {adminTab === 'atletas' && <AdminList title="Gerir Atletas (Plantel)" data={teamMembers} table="team_members" fields={[{key: 'team_id', label: 'Equipa', type: 'select', required: true, options: teams.map(t => ({value: t.id, label: t.name}))}, {key: 'name', label: 'Nome', required: true}, {key: 'number', label: 'Número', type: 'number'}, {key: 'position', label: 'Posição'}, {key: 'image_url', label: 'Foto', type: 'image'}]} />}
-              {adminTab === 'galeria' && <AdminList title="Gerir Fotos" data={gallery} table="gallery" fields={[{key: 'title', label: 'Título'}, {key: 'image_url', label: 'Imagem', type: 'image', required: true}]} />}
-              {adminTab === 'organograma' && <AdminList title="Gerir Direção" data={organization} table="organization" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'role', label: 'Cargo', required: true}, {key: 'image_url', label: 'Foto', type: 'image'}]} />}
-              {adminTab === 'definições' && <div className="p-4 bg-white rounded shadow text-neutral-500">Funcionalidades de sistema (Adicionar Admin / Reset DB) disponíveis no código original.</div>}
+              {adminTab === 'conteudo' && <SiteContentEditor siteContent={siteContent} onUpdate={updateSectionContent} />}
+              {adminTab === 'noticias' && <AdminList title="Gerir Notícias" data={news} table="news" fields={[{key: 'title', label: 'Título', required: true}, {key: 'content', label: 'Conteúdo', type: 'richtext'}, {key: 'image_url', label: 'Imagem', type: 'image'}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
+              {adminTab === 'jogos' && <AdminList title="Gerir Jogos" data={matches} table="matches" fields={[{key: 'home_team', label: 'Equipa Casa', required: true}, {key: 'guest_team', label: 'Equipa Fora', required: true}, {key: 'date', label: 'Data', type: 'datetime-local', required: true}, {key: 'location', label: 'Local'}, {key: 'category', label: 'Escalão'}, {key: 'score_home', label: 'Pontos Casa', type: 'number'}, {key: 'score_guest', label: 'Pontos Fora', type: 'number'}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
+              {adminTab === 'loja' && <AdminList title="Gerir Produtos" data={products} table="products" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'price', label: 'Preço', type: 'number', required: true}, {key: 'description', label: 'Descrição', type: 'richtext'}, {key: 'image_url', label: 'Imagem', type: 'image'}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
+              {adminTab === 'parceiros' && <AdminList title="Gerir Parceiros" data={partners} table="partners" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'website_url', label: 'Website'}, {key: 'logo_url', label: 'Logo', type: 'image'}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
+              {adminTab === 'equipas' && <AdminList title="Gerir Equipas" data={teams} table="teams" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'category', label: 'Escalão'}, {key: 'coaches', label: 'Treinadores', type: 'richtext'}, {key: 'description', label: 'Descrição', type: 'richtext'}, {key: 'image_url', label: 'Foto', type: 'image'}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
+              {adminTab === 'atletas' && <AdminList title="Gerir Atletas (Plantel)" data={teamMembers} table="team_members" fields={[{key: 'team_id', label: 'Equipa', type: 'select', required: true, options: teams.map(t => ({value: t.id, label: t.name}))}, {key: 'name', label: 'Nome', required: true}, {key: 'number', label: 'Número', type: 'number'}, {key: 'position', label: 'Posição'}, {key: 'image_url', label: 'Foto', type: 'image'}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
+              {adminTab === 'galeria' && <AdminList title="Gerir Fotos" data={gallery} table="gallery" fields={[{key: 'title', label: 'Título'}, {key: 'image_url', label: 'Imagem', type: 'image', required: true}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
+              {adminTab === 'organograma' && <AdminList title="Gerir Direção" data={organization} table="organization" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'role', label: 'Cargo', required: true}, {key: 'image_url', label: 'Foto', type: 'image'}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
+              {adminTab === 'definições' && <DatabaseFixTool />}
           </div>
         </div>
       </div>
@@ -1295,52 +1381,110 @@ export default function App() {
   };
 
   const renderContent = () => {
-    if (loading) return <div className="h-screen bg-black flex items-center justify-center"><Loader2 className="animate-spin text-primary" size={48} /></div>;
-
-    if (currentPage === 'admin' && session) return renderAdmin();
-
-    if (currentPage === 'about') return <AboutPage teams={teams} organization={organization} />;
-    
-    if (currentPage === 'contacts') return <ContactsPage content={siteContent['contacts']} />;
-
-    if (currentPage === 'login') {
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-neutral-900 px-4">
-            <div className="bg-black border border-neutral-800 p-8 rounded-lg shadow-2xl w-full max-w-md">
-              <div className="text-center mb-6">
-                  <h2 className="text-2xl font-bold text-white mb-1">Login Admin</h2>
-                  <p className="text-xs text-neutral-500">Acesso reservado</p>
-              </div>
-              {loginError && <div className="p-3 rounded mb-4 text-sm bg-red-900/50 text-red-200 border border-red-700">{loginError}</div>}
-              <form onSubmit={handleAuth} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-bold text-neutral-400 mb-1">Email</label>
-                  <input type="text" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-neutral-900 border border-neutral-700 text-white p-3 rounded focus:border-primary outline-none" required />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-neutral-400 mb-1">Password</label>
-                  <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-neutral-900 border border-neutral-700 text-white p-3 rounded focus:border-primary outline-none" required />
-                </div>
-                <button type="submit" className="w-full bg-primary text-white py-3 rounded font-bold hover:bg-orange-700 transition">Entrar</button>
-              </form>
-              <div className="mt-6 text-center border-t border-neutral-800 pt-4">
-                <button onClick={() => setCurrentPage('home')} className="text-xs text-neutral-500 hover:text-white">Voltar ao site</button>
-              </div>
+    if (currentPage === 'admin') {
+       if (!session) {
+         return (
+            <div className="flex items-center justify-center min-h-screen bg-black text-white">
+               <div className="bg-neutral-900 p-8 rounded-xl shadow-2xl border border-neutral-800 w-full max-w-md">
+                  <div className="flex justify-center mb-6">
+                    {siteContent['branding']?.image_url ? (
+                       <img src={siteContent['branding'].image_url} alt="Logo" className="h-20 object-contain" />
+                    ) : (
+                       <h2 className="text-3xl font-black italic text-primary">ALMA</h2>
+                    )}
+                  </div>
+                  <h2 className="text-xl font-bold mb-6 text-center text-white">Acesso Reservado</h2>
+                  {loginError && <div className="bg-red-500/10 text-red-500 p-3 rounded mb-4 text-sm border border-red-500/20 flex items-center gap-2"><AlertTriangle size={16}/> {loginError}</div>}
+                  <form onSubmit={handleAuth} className="space-y-4">
+                     <div>
+                       <label className="block text-xs font-bold text-neutral-500 uppercase mb-1">Email</label>
+                       <input type="text" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-black border border-neutral-800 rounded p-3 focus:border-primary outline-none text-white transition focus:ring-1 focus:ring-primary" placeholder="admin@almaviseu.pt" />
+                     </div>
+                     <div>
+                       <label className="block text-xs font-bold text-neutral-500 uppercase mb-1">Password</label>
+                       <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-black border border-neutral-800 rounded p-3 focus:border-primary outline-none text-white transition focus:ring-1 focus:ring-primary" placeholder="••••••••" />
+                     </div>
+                     <button className="w-full bg-primary text-white font-bold py-3 rounded hover:bg-orange-600 transition uppercase tracking-widest text-sm shadow-lg shadow-primary/20">Entrar</button>
+                  </form>
+                  <button onClick={() => setCurrentPage('home')} className="mt-6 text-xs text-neutral-500 hover:text-white block text-center w-full uppercase tracking-widest font-bold transition">Voltar ao site</button>
+               </div>
             </div>
-        </div>
-      );
+         );
+       }
+       return renderAdmin();
+    }
+    
+    if (currentPage === 'login') {
+        if (session) {
+            setCurrentPage('admin');
+            return null;
+        }
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-black text-white">
+               <div className="bg-neutral-900 p-8 rounded-xl shadow-2xl border border-neutral-800 w-full max-w-md">
+                  <div className="flex justify-center mb-6">
+                    {siteContent['branding']?.image_url ? (
+                       <img src={siteContent['branding'].image_url} alt="Logo" className="h-20 object-contain" />
+                    ) : (
+                       <h2 className="text-3xl font-black italic text-primary">ALMA</h2>
+                    )}
+                  </div>
+                  <h2 className="text-xl font-bold mb-6 text-center text-white">Acesso Reservado</h2>
+                  {loginError && <div className="bg-red-500/10 text-red-500 p-3 rounded mb-4 text-sm border border-red-500/20 flex items-center gap-2"><AlertTriangle size={16}/> {loginError}</div>}
+                  <form onSubmit={handleAuth} className="space-y-4">
+                     <div>
+                       <label className="block text-xs font-bold text-neutral-500 uppercase mb-1">Email</label>
+                       <input type="text" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-black border border-neutral-800 rounded p-3 focus:border-primary outline-none text-white transition focus:ring-1 focus:ring-primary" placeholder="admin@almaviseu.pt" />
+                     </div>
+                     <div>
+                       <label className="block text-xs font-bold text-neutral-500 uppercase mb-1">Password</label>
+                       <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-black border border-neutral-800 rounded p-3 focus:border-primary outline-none text-white transition focus:ring-1 focus:ring-primary" placeholder="••••••••" />
+                     </div>
+                     <button className="w-full bg-primary text-white font-bold py-3 rounded hover:bg-orange-600 transition uppercase tracking-widest text-sm shadow-lg shadow-primary/20">Entrar</button>
+                  </form>
+                  <button onClick={() => setCurrentPage('home')} className="mt-6 text-xs text-neutral-500 hover:text-white block text-center w-full uppercase tracking-widest font-bold transition">Voltar ao site</button>
+               </div>
+            </div>
+        );
     }
 
-    return <LandingPage onNavigate={setCurrentPage} news={news} matches={matches} products={products} partners={partners} teams={teams} teamMembers={teamMembers} gallery={gallery} organization={organization} heroContent={siteContent['hero']} siteContent={siteContent} />;
+    if (currentPage === 'about') return <AboutPage teams={teams} organization={organization} />;
+    if (currentPage === 'contacts') return <ContactsPage content={siteContent['contacts']} />;
+
+    return (
+      <LandingPage 
+        onNavigate={setCurrentPage} 
+        news={news} 
+        matches={matches} 
+        products={products} 
+        partners={partners} 
+        teams={teams}
+        teamMembers={teamMembers}
+        gallery={gallery}
+        heroContent={siteContent['hero'] || null}
+        siteContent={siteContent}
+      />
+    );
   };
 
+  if (loading) {
+    return (
+      <div className="h-screen w-screen bg-black flex flex-col items-center justify-center text-white">
+         <Loader2 className="animate-spin mb-4 text-primary" size={48} />
+         <p className="font-montserrat font-bold animate-pulse text-xl">A carregar ALMA...</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col min-h-screen font-sans">
-      {currentPage !== 'admin' && currentPage !== 'login' && <Navbar onNavigate={setCurrentPage} currentPage={currentPage} isAdmin={!!session} logoUrl={siteContent['branding']?.image_url} />}
-      <main className="flex-grow">
-        {renderContent()}
-      </main>
-      {currentPage !== 'admin' && currentPage !== 'login' && <Footer content={siteContent['footer']} onNavigate={setCurrentPage} />}
-    </div>
+    <>
+      {currentPage !== 'admin' && currentPage !== 'login' && (
+         <Navbar onNavigate={setCurrentPage} currentPage={currentPage} isAdmin={!!session} logoUrl={siteContent['branding']?.image_url} />
+      )}
+      {renderContent()}
+      {currentPage !== 'admin' && currentPage !== 'login' && (
+         <Footer onNavigate={setCurrentPage} content={siteContent['footer']} />
+      )}
+    </>
   );
 }
