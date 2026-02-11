@@ -1120,10 +1120,21 @@ const SiteContentEditor = ({ siteContent, onUpdate }: { siteContent: Record<stri
 // --- DATABASE FIX TOOL ---
 const DatabaseFixTool = () => {
   const sqlScript = `
--- Atualização de Schema (Novos Campos)
+-- --- TABELAS ---
+create table if not exists news (id uuid default gen_random_uuid() primary key, created_at timestamptz default now(), title text, content text, image_url text);
+create table if not exists matches (id uuid default gen_random_uuid() primary key, date timestamptz, home_team text, guest_team text, location text, score_home int, score_guest int, category text);
+create table if not exists products (id uuid default gen_random_uuid() primary key, name text, price numeric, description text, image_url text);
+create table if not exists partners (id uuid default gen_random_uuid() primary key, name text, website_url text, logo_url text);
+create table if not exists teams (id uuid default gen_random_uuid() primary key, name text, category text, description text, image_url text, coaches text);
+create table if not exists team_members (id uuid default gen_random_uuid() primary key, team_id uuid references teams(id), name text, number text, position text, image_url text);
+create table if not exists gallery (id uuid default gen_random_uuid() primary key, title text, image_url text);
+create table if not exists organization (id uuid default gen_random_uuid() primary key, created_at timestamptz default now(), name text, role text, image_url text);
+create table if not exists site_content (id uuid default gen_random_uuid() primary key, section text unique not null, title text, subtitle text, image_url text);
+
+-- --- MIGRATIONS ---
 alter table teams add column if not exists coaches text;
 
--- Habilitar RLS em todas as tabelas
+-- --- RLS (Row Level Security) ---
 alter table news enable row level security;
 alter table matches enable row level security;
 alter table products enable row level security;
@@ -1134,27 +1145,31 @@ alter table gallery enable row level security;
 alter table organization enable row level security;
 alter table site_content enable row level security;
 
--- Política para Leitura Pública (Anónima)
-create policy "Public Read News" on news for select using (true);
-create policy "Public Read Matches" on matches for select using (true);
-create policy "Public Read Products" on products for select using (true);
-create policy "Public Read Partners" on partners for select using (true);
-create policy "Public Read Teams" on teams for select using (true);
-create policy "Public Read TeamMembers" on team_members for select using (true);
-create policy "Public Read Gallery" on gallery for select using (true);
-create policy "Public Read Org" on organization for select using (true);
-create policy "Public Read Content" on site_content for select using (true);
+-- --- POLÍTICAS DE ACESSO (Drop & Re-create) ---
+-- 1. Leitura Pública (Qualquer pessoa vê)
+drop policy if exists "Public Read News" on news; create policy "Public Read News" on news for select using (true);
+drop policy if exists "Public Read Matches" on matches; create policy "Public Read Matches" on matches for select using (true);
+drop policy if exists "Public Read Products" on products; create policy "Public Read Products" on products for select using (true);
+drop policy if exists "Public Read Partners" on partners; create policy "Public Read Partners" on partners for select using (true);
+drop policy if exists "Public Read Teams" on teams; create policy "Public Read Teams" on teams for select using (true);
+drop policy if exists "Public Read TeamMembers" on team_members; create policy "Public Read TeamMembers" on team_members for select using (true);
+drop policy if exists "Public Read Gallery" on gallery; create policy "Public Read Gallery" on gallery for select using (true);
+drop policy if exists "Public Read Org" on organization; create policy "Public Read Org" on organization for select using (true);
+drop policy if exists "Public Read Content" on site_content; create policy "Public Read Content" on site_content for select using (true);
 
--- Política para Escrita (Apenas Autenticado)
-create policy "Admin Write News" on news for all using (auth.role() = 'authenticated');
-create policy "Admin Write Matches" on matches for all using (auth.role() = 'authenticated');
-create policy "Admin Write Products" on products for all using (auth.role() = 'authenticated');
-create policy "Admin Write Partners" on partners for all using (auth.role() = 'authenticated');
-create policy "Admin Write Teams" on teams for all using (auth.role() = 'authenticated');
-create policy "Admin Write TeamMembers" on team_members for all using (auth.role() = 'authenticated');
-create policy "Admin Write Gallery" on gallery for all using (auth.role() = 'authenticated');
-create policy "Admin Write Org" on organization for all using (auth.role() = 'authenticated');
-create policy "Admin Write Content" on site_content for all using (auth.role() = 'authenticated');
+-- 2. Escrita Admin (Só login vê/edita)
+drop policy if exists "Admin Write News" on news; create policy "Admin Write News" on news for all using (auth.role() = 'authenticated');
+drop policy if exists "Admin Write Matches" on matches; create policy "Admin Write Matches" on matches for all using (auth.role() = 'authenticated');
+drop policy if exists "Admin Write Products" on products; create policy "Admin Write Products" on products for all using (auth.role() = 'authenticated');
+drop policy if exists "Admin Write Partners" on partners; create policy "Admin Write Partners" on partners for all using (auth.role() = 'authenticated');
+drop policy if exists "Admin Write Teams" on teams; create policy "Admin Write Teams" on teams for all using (auth.role() = 'authenticated');
+drop policy if exists "Admin Write TeamMembers" on team_members; create policy "Admin Write TeamMembers" on team_members for all using (auth.role() = 'authenticated');
+drop policy if exists "Admin Write Gallery" on gallery; create policy "Admin Write Gallery" on gallery for all using (auth.role() = 'authenticated');
+drop policy if exists "Admin Write Org" on organization; create policy "Admin Write Org" on organization for all using (auth.role() = 'authenticated');
+drop policy if exists "Admin Write Content" on site_content; create policy "Admin Write Content" on site_content for all using (auth.role() = 'authenticated');
+
+-- --- STORAGE (Imagens) ---
+insert into storage.buckets (id, name, public) values ('images', 'images', true) on conflict (id) do nothing;
   `;
 
   return (
@@ -1263,7 +1278,8 @@ export default function App() {
         console.error("Error fetching team_members:", memberRes.error);
         // We continue without crushing the app, simply no members will be shown
       } else if (memberRes.data) {
-        setTeamMembers(memberRes.data);
+        const sorted = memberRes.data.sort((a, b) => a.name.localeCompare(b.name, 'pt-PT'));
+        setTeamMembers(sorted);
       }
 
     } catch (e) {
