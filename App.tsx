@@ -1414,7 +1414,7 @@ export default function App() {
                   <form onSubmit={handleAuth} className="space-y-4">
                      <div>
                        <label className="block text-xs font-bold text-neutral-500 uppercase mb-1">Email</label>
-                       <input type="text" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-black border border-neutral-800 rounded p-3 focus:border-primary outline-none text-white transition focus:ring-1 focus:ring-primary" placeholder="admin@almaviseu.pt" />
+                       <input type="text" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-black border border-neutral-800 rounded p-3 focus:border-primary outline-none text-white transition focus:ring-1 focus:ring-primary" />
                      </div>
                      <div>
                        <label className="block text-xs font-bold text-neutral-500 uppercase mb-1">Password</label>
@@ -1450,7 +1450,7 @@ export default function App() {
                   <form onSubmit={handleAuth} className="space-y-4">
                      <div>
                        <label className="block text-xs font-bold text-neutral-500 uppercase mb-1">Email</label>
-                       <input type="text" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-black border border-neutral-800 rounded p-3 focus:border-primary outline-none text-white transition focus:ring-1 focus:ring-primary" placeholder="admin@almaviseu.pt" />
+                       <input type="text" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-black border border-neutral-800 rounded p-3 focus:border-primary outline-none text-white transition focus:ring-1 focus:ring-primary" />
                      </div>
                      <div>
                        <label className="block text-xs font-bold text-neutral-500 uppercase mb-1">Password</label>
