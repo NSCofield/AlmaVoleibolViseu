@@ -1351,7 +1351,7 @@ export default function App() {
         supabase.from('matches').select('*').order('date', { ascending: true }),
         supabase.from('products').select('*'),
         supabase.from('partners').select('*'),
-        supabase.from('teams').select('*'),
+        supabase.from('teams').select('*').order('name', { ascending: true }),
         supabase.from('gallery').select('*'),
         supabase.from('organization').select('*').order('created_at', { ascending: true }),
         supabase.from('site_content').select('*')
