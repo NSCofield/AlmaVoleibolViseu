@@ -419,24 +419,35 @@ const AboutPage = ({ teams, organization, teamMembers }: { teams: Team[], organi
 
           {organization.length > 0 && (
             <div className="border-t border-neutral-800 pt-16">
-              <h3 className="text-2xl font-bold text-white mb-12 uppercase tracking-widest">Estrutura Diretiva</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-8 gap-y-12">
-                 {organization.map(member => (
-                    <div key={member.id} className="flex flex-col items-center group">
-                       {member.show_photo !== false && (
-                          <div className="w-40 h-40 rounded-full overflow-hidden border-4 border-neutral-800 group-hover:border-primary transition duration-300 mb-6 shadow-xl relative">
-                             <img 
-                               src={member.image_url || `https://ui-avatars.com/api/?name=${member.name}&background=random`} 
-                               alt={member.name}
-                               className="w-full h-full object-cover"
-                             />
+              <h3 className="text-2xl font-bold text-white mb-12 uppercase tracking-widest">Órgãos Sociais</h3>
+              
+              {['Mesa da Assembleia Geral', 'Conselho Fiscal', 'Direção'].map(dept => {
+                const deptMembers = organization.filter(m => (m.department || 'Direção') === dept);
+                if (deptMembers.length === 0) return null;
+                
+                return (
+                  <div key={dept} className="mb-16 last:mb-0">
+                    <h4 className="text-xl font-bold text-primary mb-8 uppercase tracking-wider border-b border-neutral-800 pb-4">{dept}</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-8 gap-y-12">
+                       {deptMembers.map(member => (
+                          <div key={member.id} className="flex flex-col items-center group">
+                             {member.show_photo !== false && (
+                                <div className="w-40 h-40 rounded-full overflow-hidden border-4 border-neutral-800 group-hover:border-primary transition duration-300 mb-6 shadow-xl relative">
+                                   <img 
+                                     src={member.image_url || `https://ui-avatars.com/api/?name=${member.name}&background=random`} 
+                                     alt={member.name}
+                                     className="w-full h-full object-cover"
+                                   />
+                                </div>
+                             )}
+                             <h4 className="text-xl font-bold text-white mb-1">{member.name}</h4>
+                             <p className="text-neutral-400 text-sm uppercase font-bold tracking-wider">{member.role}</p>
                           </div>
-                       )}
-                       <h4 className="text-xl font-bold text-white mb-1">{member.name}</h4>
-                       <p className="text-primary text-sm uppercase font-bold tracking-wider">{member.role}</p>
+                       ))}
                     </div>
-                 ))}
-              </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -1222,6 +1233,7 @@ alter table teams add column if not exists coaches text;
 alter table products add column if not exists hide_price boolean default false;
 alter table products add column if not exists hide_order_button boolean default false;
 alter table organization add column if not exists show_photo boolean default true;
+alter table organization add column if not exists department text default 'Direção';
 
 -- --- RLS (Row Level Security) ---
 alter table news enable row level security;
@@ -1457,7 +1469,7 @@ export default function App() {
               <button onClick={() => setAdminTab('conteudo')} className={`w-full text-left p-2 rounded capitalize font-montserrat font-extrabold ${adminTab === 'conteudo' ? 'bg-primary text-white' : 'hover:bg-neutral-100 text-neutral-700'}`}>
                   <span className="flex items-center gap-2"><Layout size={16}/> Conteúdos</span>
               </button>
-              {['menu', 'noticias', 'jogos', 'loja', 'parceiros', 'equipas', 'atletas', 'galeria', 'organograma', 'definições'].map(tab => (
+              {['menu', 'noticias', 'jogos', 'loja', 'parceiros', 'equipas', 'atletas', 'galeria', 'órgãos sociais', 'definições'].map(tab => (
                 <button key={tab} onClick={() => setAdminTab(tab)} className={`w-full text-left p-2 rounded capitalize font-montserrat font-extrabold ${adminTab === tab ? 'bg-primary text-white' : 'hover:bg-neutral-100 text-neutral-700'}`}>
                   {tab === 'definições' ? <span className="flex items-center gap-2"><Settings size={16}/> Definições</span> : tab === 'menu' ? <span className="flex items-center gap-2"><List size={16}/> Menu</span> : tab}
                 </button>
@@ -1478,7 +1490,7 @@ export default function App() {
               {adminTab === 'equipas' && <AdminList title="Gerir Equipas" data={teams} table="teams" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'category', label: 'Escalão'}, {key: 'coaches', label: 'Treinadores', type: 'richtext'}, {key: 'description', label: 'Descrição', type: 'richtext'}, {key: 'image_url', label: 'Foto', type: 'image'}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
               {adminTab === 'atletas' && <AdminList title="Gerir Atletas (Plantel)" data={teamMembers} table="team_members" fields={[{key: 'team_id', label: 'Equipa', type: 'select', required: true, options: teams.map(t => ({value: t.id, label: t.name}))}, {key: 'name', label: 'Nome', required: true}, {key: 'number', label: 'Número', type: 'number'}, {key: 'position', label: 'Posição'}, {key: 'image_url', label: 'Foto', type: 'image'}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
               {adminTab === 'galeria' && <AdminList title="Gerir Fotos" data={gallery} table="gallery" fields={[{key: 'title', label: 'Título'}, {key: 'image_url', label: 'Imagem', type: 'image', required: true}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
-              {adminTab === 'organograma' && <AdminList title="Gerir Direção" data={organization} table="organization" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'role', label: 'Cargo', required: true}, {key: 'image_url', label: 'Foto', type: 'image'}, {key: 'show_photo', label: 'Mostrar Foto', type: 'checkbox', defaultValue: true}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
+              {adminTab === 'órgãos sociais' && <AdminList title="Gerir Órgãos Sociais" data={organization} table="organization" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'role', label: 'Cargo', required: true}, {key: 'department', label: 'Órgão Social', type: 'select', required: true, defaultValue: 'Direção', options: [{value: 'Mesa da Assembleia Geral', label: 'Mesa da Assembleia Geral'}, {value: 'Conselho Fiscal', label: 'Conselho Fiscal'}, {value: 'Direção', label: 'Direção'}]}, {key: 'image_url', label: 'Foto', type: 'image'}, {key: 'show_photo', label: 'Mostrar Foto', type: 'checkbox', defaultValue: true}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
               {adminTab === 'definições' && <DatabaseFixTool />}
           </div>
         </div>
