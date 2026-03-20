@@ -180,7 +180,7 @@ interface ModalItem {
   coaches?: string; // Coaches field
 }
 
-const ImageModal = ({ items, initialIndex, isOpen, onClose }: { items: ModalItem[], initialIndex: number, isOpen: boolean, onClose: () => void }) => {
+const ImageModal = ({ items, initialIndex, isOpen, onClose, type }: { items: ModalItem[], initialIndex: number, isOpen: boolean, onClose: () => void, type?: string | null }) => {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
 
   useEffect(() => {
@@ -239,67 +239,75 @@ const ImageModal = ({ items, initialIndex, isOpen, onClose }: { items: ModalItem
               alt={currentItem.title} 
               className="max-w-full max-h-full object-contain"
            />
+           {type === 'gallery' && (
+             <div className="absolute bottom-4 left-4 right-4 flex justify-between text-xs text-white/70 bg-black/50 px-4 py-2 rounded-full">
+               <span>ALMA Viseu</span>
+               <span>{currentIndex + 1} / {items.length}</span>
+             </div>
+           )}
         </div>
 
-        <div className="w-full md:w-[450px] bg-neutral-900 border-l border-neutral-800 flex flex-col h-[60vh] md:h-full">
-           <div className="p-6 md:p-8 overflow-y-auto custom-scrollbar flex-grow">
-              {currentItem.subtitle && (
-                <div className="text-primary font-bold uppercase tracking-widest text-xs mb-2">
-                   {currentItem.subtitle}
-                </div>
-              )}
-              <h2 className="text-2xl md:text-3xl font-black italic text-white mb-6 leading-tight">
-                 {currentItem.title}
-              </h2>
-              
-              {currentItem.description && (
-                <div 
-                  className="text-white leading-relaxed text-sm md:text-base space-y-4 mb-8"
-                  dangerouslySetInnerHTML={{__html: currentItem.description}}
-                ></div>
-              )}
-              
-              {/* Coaches Section */}
-              {currentItem.coaches && (
-                <div className="mb-8 border-l-4 border-primary pl-4">
-                   <h3 className="text-primary font-bold uppercase tracking-widest text-xs mb-1">Equipa Técnica</h3>
-                   <div 
-                     className="text-white text-base font-bold whitespace-pre-wrap"
-                     dangerouslySetInnerHTML={{__html: currentItem.coaches}}
-                   ></div>
-                </div>
-              )}
+        {type !== 'gallery' && (
+          <div className="w-full md:w-[450px] bg-neutral-900 border-l border-neutral-800 flex flex-col h-[60vh] md:h-full">
+             <div className="p-6 md:p-8 overflow-y-auto custom-scrollbar flex-grow">
+                {currentItem.subtitle && (
+                  <div className="text-primary font-bold uppercase tracking-widest text-xs mb-2">
+                     {currentItem.subtitle}
+                  </div>
+                )}
+                <h2 className="text-2xl md:text-3xl font-black italic text-white mb-6 leading-tight">
+                   {currentItem.title}
+                </h2>
+                
+                {currentItem.description && (
+                  <div 
+                    className="text-white leading-relaxed text-sm md:text-base space-y-4 mb-8"
+                    dangerouslySetInnerHTML={{__html: currentItem.description}}
+                  ></div>
+                )}
+                
+                {/* Coaches Section */}
+                {currentItem.coaches && (
+                  <div className="mb-8 border-l-4 border-primary pl-4">
+                     <h3 className="text-primary font-bold uppercase tracking-widest text-xs mb-1">Equipa Técnica</h3>
+                     <div 
+                       className="text-white text-base font-bold whitespace-pre-wrap"
+                       dangerouslySetInnerHTML={{__html: currentItem.coaches}}
+                     ></div>
+                  </div>
+                )}
 
-              {/* Roster / Plantel Rendering - UPDATED TO SHOW EMPTY STATE */}
-              {currentItem.members && (
-                <div className="border-t border-neutral-800 pt-6">
-                   <h3 className="text-primary font-bold uppercase tracking-widest text-sm mb-4 flex items-center gap-2">
-                      <Users size={16} /> Plantel
-                   </h3>
-                   {currentItem.members.length > 0 ? (
-                      <div className="grid grid-cols-3 gap-3">
-                          {currentItem.members.map(member => (
-                            <div key={member.id} className="flex flex-col items-center bg-black p-2 rounded-lg border border-neutral-800 hover:border-primary transition group">
-                                <div className="w-12 h-12 rounded-full overflow-hidden mb-2 bg-neutral-800 border-2 border-neutral-700 group-hover:border-primary transition">
-                                    <img src={member.image_url || `https://ui-avatars.com/api/?name=${member.name}&background=random`} alt={member.name} className="w-full h-full object-cover" />
-                                </div>
-                                <div className="font-bold text-white text-[10px] text-center leading-tight w-full truncate" title={member.name}>{member.name}</div>
-                                <div className="text-[9px] text-primary font-bold uppercase">{member.number ? `#${member.number}` : ''} {member.position}</div>
-                            </div>
-                          ))}
-                       </div>
-                   ) : (
-                       <p className="text-neutral-500 text-sm italic">Plantel a anunciar brevemente.</p>
-                   )}
-                </div>
-              )}
-           </div>
-           
-           <div className="mt-auto p-4 border-t border-neutral-800 text-xs text-neutral-500 flex justify-between shrink-0">
-              <span>ALMA Viseu</span>
-              <span>{currentIndex + 1} / {items.length}</span>
-           </div>
-        </div>
+                {/* Roster / Plantel Rendering - UPDATED TO SHOW EMPTY STATE */}
+                {currentItem.members && (
+                  <div className="border-t border-neutral-800 pt-6">
+                     <h3 className="text-primary font-bold uppercase tracking-widest text-sm mb-4 flex items-center gap-2">
+                        <Users size={16} /> Plantel
+                     </h3>
+                     {currentItem.members.length > 0 ? (
+                        <div className="grid grid-cols-3 gap-3">
+                            {currentItem.members.map(member => (
+                              <div key={member.id} className="flex flex-col items-center bg-black p-2 rounded-lg border border-neutral-800 hover:border-primary transition group">
+                                  <div className="w-12 h-12 rounded-full overflow-hidden mb-2 bg-neutral-800 border-2 border-neutral-700 group-hover:border-primary transition">
+                                      <img src={member.image_url || `https://ui-avatars.com/api/?name=${member.name}&background=random`} alt={member.name} className="w-full h-full object-cover" />
+                                  </div>
+                                  <div className="font-bold text-white text-[10px] text-center leading-tight w-full truncate" title={member.name}>{member.name}</div>
+                                  <div className="text-[9px] text-primary font-bold uppercase">{member.number ? `#${member.number}` : ''} {member.position}</div>
+                              </div>
+                            ))}
+                         </div>
+                     ) : (
+                         <p className="text-neutral-500 text-sm italic">Plantel a anunciar brevemente.</p>
+                     )}
+                  </div>
+                )}
+             </div>
+             
+             <div className="mt-auto p-4 border-t border-neutral-800 text-xs text-neutral-500 flex justify-between shrink-0">
+                <span>ALMA Viseu</span>
+                <span>{currentIndex + 1} / {items.length}</span>
+             </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -579,6 +587,7 @@ const LandingPage = ({
   const [modalOpen, setModalOpen] = useState(false);
   const [modalItems, setModalItems] = useState<ModalItem[]>([]);
   const [modalStartIndex, setModalStartIndex] = useState(0);
+  const [modalType, setModalType] = useState<'news' | 'product' | 'team' | 'gallery' | null>(null);
 
   const openModal = (items: any[], index: number, type: 'news' | 'product' | 'team' | 'gallery') => {
     let formattedItems: ModalItem[] = [];
@@ -622,6 +631,7 @@ const LandingPage = ({
 
     setModalItems(formattedItems);
     setModalStartIndex(index);
+    setModalType(type);
     setModalOpen(true);
   };
 
@@ -876,7 +886,7 @@ const LandingPage = ({
           </SectionCarousel>
       </DynamicSection>
 
-      <ImageModal isOpen={modalOpen} onClose={() => setModalOpen(false)} items={modalItems} initialIndex={modalStartIndex} />
+      <ImageModal isOpen={modalOpen} onClose={() => setModalOpen(false)} items={modalItems} initialIndex={modalStartIndex} type={modalType} />
     </div>
   );
 };
