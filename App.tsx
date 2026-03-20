@@ -841,9 +841,6 @@ const LandingPage = ({
                   onClick={() => openModal(gallery, index, 'gallery')}
                 >
                   <img src={g.image_url || `https://picsum.photos/seed/${g.id}/500/500`} className="w-full h-full object-cover transition duration-700 group-hover:scale-110 opacity-70 group-hover:opacity-100" />
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition duration-300 flex items-center justify-center">
-                      <p className="text-white font-bold tracking-widest uppercase text-sm border-2 border-primary px-4 py-2 text-center">{g.title}</p>
-                  </div>
                 </div>
               ))}
               {gallery.length === 0 && <p className="text-neutral-500 text-center w-full">Galeria vazia.</p>}
