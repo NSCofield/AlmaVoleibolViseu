@@ -386,7 +386,10 @@ const DynamicSection = ({
 };
 
 // --- ABOUT PAGE COMPONENT ---
-const AboutPage = ({ teams, organization }: { teams: Team[], organization: OrganizationMember[] }) => {
+const AboutPage = ({ teams, organization, teamMembers }: { teams: Team[], organization: OrganizationMember[], teamMembers: TeamMember[] }) => {
+  const totalAthletes = teamMembers.length;
+  const displayAthletes = totalAthletes >= 25 ? `${Math.floor(totalAthletes / 25) * 25}+` : totalAthletes;
+
   return (
     <div className="bg-neutral-900 min-h-screen text-white py-12 px-4 animate-fade-in">
         <div className="max-w-4xl mx-auto text-center">
@@ -408,7 +411,7 @@ const AboutPage = ({ teams, organization }: { teams: Team[], organization: Organ
                     <div className="text-xs text-neutral-500 uppercase">Equipas</div>
                  </div>
                  <div className="p-4 bg-black rounded-lg border border-neutral-800">
-                    <div className="text-3xl font-bold text-primary mb-1">100+</div>
+                    <div className="text-3xl font-bold text-primary mb-1">{displayAthletes}</div>
                     <div className="text-xs text-neutral-500 uppercase">Atletas</div>
                  </div>
               </div>
@@ -1542,7 +1545,7 @@ export default function App() {
         );
     }
 
-    if (currentPage === 'about') return <AboutPage teams={teams} organization={organization} />;
+    if (currentPage === 'about') return <AboutPage teams={teams} organization={organization} teamMembers={teamMembers} />;
     if (currentPage === 'contacts') return <ContactsPage content={siteContent['contacts']} />;
 
     return (
