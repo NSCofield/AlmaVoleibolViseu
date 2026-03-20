@@ -6,21 +6,22 @@ interface NavbarProps {
   currentPage: string;
   isAdmin: boolean;
   logoUrl?: string;
+  siteContent?: Record<string, any>;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentPage, logoUrl }) => {
+export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentPage, logoUrl, siteContent }) => {
   const [isOpen, setIsOpen] = useState(false);
   
   const navItems = [
-    { id: 'home', label: 'Início' },
-    { id: 'news', label: 'Notícias' },
-    { id: 'calendar', label: 'Calendário' },
-    { id: 'teams', label: 'Equipas' },
-    { id: 'photos', label: 'Fotos' },
-    { id: 'partners', label: 'Parceiros' },
-    { id: 'shop', label: 'Loja' },
-    { id: 'about', label: 'Quem Somos' },
-    { id: 'contacts', label: 'Contactos' },
+    { id: 'home', label: siteContent?.['nav_home']?.title || 'Início' },
+    { id: 'news', label: siteContent?.['nav_news']?.title || 'Notícias' },
+    { id: 'calendar', label: siteContent?.['nav_calendar']?.title || 'Calendário' },
+    { id: 'teams', label: siteContent?.['nav_teams']?.title || 'Equipas' },
+    { id: 'photos', label: siteContent?.['nav_photos']?.title || 'Fotos' },
+    { id: 'partners', label: siteContent?.['nav_partners']?.title || 'Parceiros' },
+    { id: 'shop', label: siteContent?.['nav_shop']?.title || 'Loja' },
+    { id: 'about', label: siteContent?.['nav_about']?.title || 'Quem Somos' },
+    { id: 'contacts', label: siteContent?.['nav_contacts']?.title || 'Contactos' },
   ];
 
   const handleNav = (id: string) => {

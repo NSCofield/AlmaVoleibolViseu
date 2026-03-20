@@ -1025,6 +1025,65 @@ const AdminList = ({ title, data, table, fields, onCreate, onUpdate, onDelete }:
     );
 };
 
+const MenuEditor = ({ siteContent, onUpdate }: { siteContent: Record<string, SiteContent>, onUpdate: Function }) => {
+  const menuItems = [
+    { id: 'nav_home', defaultLabel: 'Início' },
+    { id: 'nav_news', defaultLabel: 'Notícias' },
+    { id: 'nav_calendar', defaultLabel: 'Calendário' },
+    { id: 'nav_teams', defaultLabel: 'Equipas' },
+    { id: 'nav_photos', defaultLabel: 'Fotos' },
+    { id: 'nav_partners', defaultLabel: 'Parceiros' },
+    { id: 'nav_shop', defaultLabel: 'Loja' },
+    { id: 'nav_about', defaultLabel: 'Quem Somos' },
+    { id: 'nav_contacts', defaultLabel: 'Contactos' },
+  ];
+
+  const [saving, setSaving] = useState<string | null>(null);
+
+  const handleSave = async (id: string, newTitle: string) => {
+    setSaving(id);
+    await onUpdate(id, newTitle, '', null);
+    setSaving(null);
+  };
+
+  return (
+    <div className="bg-white p-6 rounded shadow text-black max-w-2xl">
+       <h3 className="text-xl font-bold mb-6 border-b pb-2">Editar Nomes dos Separadores</h3>
+       <p className="text-sm text-neutral-500 mb-6">Altere os nomes que aparecem no menu de navegação do site.</p>
+       
+       <div className="space-y-4">
+         {menuItems.map(item => {
+           const currentVal = siteContent[item.id]?.title || item.defaultLabel;
+           return (
+             <div key={item.id} className="flex items-center gap-4 border-b pb-4">
+               <div className="w-1/3 font-bold text-neutral-600">{item.defaultLabel} (Original)</div>
+               <div className="w-2/3 flex gap-2">
+                 <input 
+                   type="text" 
+                   defaultValue={currentVal}
+                   id={`input-${item.id}`}
+                   className="flex-1 border p-2 rounded focus:border-primary outline-none"
+                 />
+                 <button 
+                   onClick={() => {
+                     const val = (document.getElementById(`input-${item.id}`) as HTMLInputElement).value;
+                     handleSave(item.id, val);
+                   }}
+                   disabled={saving === item.id}
+                   className="bg-primary text-white px-4 py-2 rounded font-bold hover:bg-primary/90 disabled:opacity-50 flex items-center gap-2"
+                 >
+                   {saving === item.id ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                   Guardar
+                 </button>
+               </div>
+             </div>
+           );
+         })}
+       </div>
+    </div>
+  );
+};
+
 const SiteContentEditor = ({ siteContent, onUpdate }: { siteContent: Record<string, SiteContent>, onUpdate: Function }) => {
   const sections = [
     { id: 'hero', label: 'Início (Hero)' },
@@ -1368,9 +1427,9 @@ export default function App() {
               <button onClick={() => setAdminTab('conteudo')} className={`w-full text-left p-2 rounded capitalize font-montserrat font-extrabold ${adminTab === 'conteudo' ? 'bg-primary text-white' : 'hover:bg-neutral-100 text-neutral-700'}`}>
                   <span className="flex items-center gap-2"><Layout size={16}/> Conteúdos</span>
               </button>
-              {['noticias', 'jogos', 'loja', 'parceiros', 'equipas', 'atletas', 'galeria', 'organograma', 'definições'].map(tab => (
+              {['menu', 'noticias', 'jogos', 'loja', 'parceiros', 'equipas', 'atletas', 'galeria', 'organograma', 'definições'].map(tab => (
                 <button key={tab} onClick={() => setAdminTab(tab)} className={`w-full text-left p-2 rounded capitalize font-montserrat font-extrabold ${adminTab === tab ? 'bg-primary text-white' : 'hover:bg-neutral-100 text-neutral-700'}`}>
-                  {tab === 'definições' ? <span className="flex items-center gap-2"><Settings size={16}/> Definições</span> : tab}
+                  {tab === 'definições' ? <span className="flex items-center gap-2"><Settings size={16}/> Definições</span> : tab === 'menu' ? <span className="flex items-center gap-2"><List size={16}/> Menu</span> : tab}
                 </button>
               ))}
             </div>
@@ -1381,6 +1440,7 @@ export default function App() {
           <div className="flex-1 p-8 overflow-y-auto bg-neutral-50">
               <h2 className="text-3xl font-bold mb-6 capitalize text-secondary">{adminTab}</h2>
               {adminTab === 'conteudo' && <SiteContentEditor siteContent={siteContent} onUpdate={updateSectionContent} />}
+              {adminTab === 'menu' && <MenuEditor siteContent={siteContent} onUpdate={updateSectionContent} />}
               {adminTab === 'noticias' && <AdminList title="Gerir Notícias" data={news} table="news" fields={[{key: 'title', label: 'Título', required: true}, {key: 'content', label: 'Conteúdo', type: 'richtext'}, {key: 'image_url', label: 'Imagem', type: 'image'}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
               {adminTab === 'jogos' && <AdminList title="Gerir Jogos" data={matches} table="matches" fields={[{key: 'home_team', label: 'Equipa Casa', required: true}, {key: 'guest_team', label: 'Equipa Fora', required: true}, {key: 'date', label: 'Data', type: 'datetime-local', required: true}, {key: 'location', label: 'Local'}, {key: 'category', label: 'Escalão'}, {key: 'score_home', label: 'Pontos Casa', type: 'number'}, {key: 'score_guest', label: 'Pontos Fora', type: 'number'}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
               {adminTab === 'loja' && <AdminList title="Gerir Produtos" data={products} table="products" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'price', label: 'Preço', type: 'number', required: true}, {key: 'description', label: 'Descrição', type: 'richtext'}, {key: 'image_url', label: 'Imagem', type: 'image'}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
@@ -1495,7 +1555,7 @@ export default function App() {
   return (
     <>
       {currentPage !== 'admin' && currentPage !== 'login' && (
-         <Navbar onNavigate={setCurrentPage} currentPage={currentPage} isAdmin={!!session} logoUrl={siteContent['branding']?.image_url} />
+         <Navbar onNavigate={setCurrentPage} currentPage={currentPage} isAdmin={!!session} logoUrl={siteContent['branding']?.image_url} siteContent={siteContent} />
       )}
       {renderContent()}
       {currentPage !== 'admin' && currentPage !== 'login' && (
