@@ -596,7 +596,7 @@ const LandingPage = ({
         id: i.id,
         image: i.image_url || `https://picsum.photos/seed/${i.id}/800/600`,
         title: i.name,
-        subtitle: `${i.price.toFixed(2)} €`,
+        subtitle: i.hide_price ? undefined : `${i.price.toFixed(2)} €`,
         description: i.description
       }));
     } else if (type === 'team') {
@@ -857,14 +857,18 @@ const LandingPage = ({
               >
                 <div className="h-40 overflow-hidden relative p-3 bg-neutral-800">
                   <img src={p.image_url || `https://picsum.photos/seed/${p.id}/400/400`} alt={p.name} className="w-full h-full object-cover rounded-lg transition transform group-hover:scale-105" />
-                  <div className="absolute top-3 right-3 bg-primary text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg">{p.price.toFixed(2)} €</div>
+                  {!p.hide_price && (
+                    <div className="absolute top-3 right-3 bg-primary text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg">{p.price.toFixed(2)} €</div>
+                  )}
                 </div>
                 <div className="p-3">
                   <h3 className="font-bold text-sm text-white mb-1 truncate">{p.name}</h3>
                   <div className="text-neutral-500 text-[10px] mb-3 line-clamp-2" dangerouslySetInnerHTML={{__html: p.description}}></div>
-                  <button className="w-full bg-white text-black py-2 rounded font-bold text-xs hover:bg-primary hover:text-white transition flex items-center justify-center gap-2">
-                    <ShoppingBag size={12} /> Encomendar
-                  </button>
+                  {!p.hide_order_button && (
+                    <button className="w-full bg-white text-black py-2 rounded font-bold text-xs hover:bg-primary hover:text-white transition flex items-center justify-center gap-2">
+                      <ShoppingBag size={12} /> Encomendar
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -984,6 +988,11 @@ const AdminList = ({ title, data, table, fields, onCreate, onUpdate, onDelete }:
                            <option key={opt.value} value={opt.value}>{opt.label}</option>
                          ))}
                       </select>
+                  ) : f.type === 'checkbox' ? (
+                      <div className="flex items-center gap-2">
+                        <input type="checkbox" className="h-4 w-4" checked={!!formData[f.key]} onChange={e => setFormData({...formData, [f.key]: e.target.checked})} />
+                        <span className="text-sm text-neutral-600">{f.label}</span>
+                      </div>
                   ) : (
                     <input type={f.type || 'text'} className="w-full border p-2 rounded" value={formData[f.key] || ''} onChange={e => setFormData({...formData, [f.key]: e.target.value})} required={f.required} />
                   )}
@@ -1182,7 +1191,7 @@ const DatabaseFixTool = () => {
 -- --- TABELAS ---
 create table if not exists news (id uuid default gen_random_uuid() primary key, created_at timestamptz default now(), title text, content text, image_url text);
 create table if not exists matches (id uuid default gen_random_uuid() primary key, date timestamptz, home_team text, guest_team text, location text, score_home int, score_guest int, category text);
-create table if not exists products (id uuid default gen_random_uuid() primary key, name text, price numeric, description text, image_url text);
+create table if not exists products (id uuid default gen_random_uuid() primary key, name text, price numeric, description text, image_url text, hide_price boolean default false, hide_order_button boolean default false);
 create table if not exists partners (id uuid default gen_random_uuid() primary key, name text, website_url text, logo_url text);
 create table if not exists teams (id uuid default gen_random_uuid() primary key, name text, category text, description text, image_url text, coaches text);
 create table if not exists team_members (id uuid default gen_random_uuid() primary key, team_id uuid references teams(id), name text, number text, position text, image_url text);
@@ -1192,6 +1201,8 @@ create table if not exists site_content (id uuid default gen_random_uuid() prima
 
 -- --- MIGRATIONS ---
 alter table teams add column if not exists coaches text;
+alter table products add column if not exists hide_price boolean default false;
+alter table products add column if not exists hide_order_button boolean default false;
 
 -- --- RLS (Row Level Security) ---
 alter table news enable row level security;
@@ -1443,7 +1454,7 @@ export default function App() {
               {adminTab === 'menu' && <MenuEditor siteContent={siteContent} onUpdate={updateSectionContent} />}
               {adminTab === 'noticias' && <AdminList title="Gerir Notícias" data={news} table="news" fields={[{key: 'title', label: 'Título', required: true}, {key: 'content', label: 'Conteúdo', type: 'richtext'}, {key: 'image_url', label: 'Imagem', type: 'image'}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
               {adminTab === 'jogos' && <AdminList title="Gerir Jogos" data={matches} table="matches" fields={[{key: 'home_team', label: 'Equipa Casa', required: true}, {key: 'guest_team', label: 'Equipa Fora', required: true}, {key: 'date', label: 'Data', type: 'datetime-local', required: true}, {key: 'location', label: 'Local'}, {key: 'category', label: 'Escalão'}, {key: 'score_home', label: 'Pontos Casa', type: 'number'}, {key: 'score_guest', label: 'Pontos Fora', type: 'number'}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
-              {adminTab === 'loja' && <AdminList title="Gerir Produtos" data={products} table="products" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'price', label: 'Preço', type: 'number', required: true}, {key: 'description', label: 'Descrição', type: 'richtext'}, {key: 'image_url', label: 'Imagem', type: 'image'}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
+              {adminTab === 'loja' && <AdminList title="Gerir Produtos" data={products} table="products" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'price', label: 'Preço', type: 'number', required: true}, {key: 'description', label: 'Descrição', type: 'richtext'}, {key: 'image_url', label: 'Imagem', type: 'image'}, {key: 'hide_price', label: 'Ocultar Preço', type: 'checkbox'}, {key: 'hide_order_button', label: 'Ocultar Botão Encomendar', type: 'checkbox'}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
               {adminTab === 'parceiros' && <AdminList title="Gerir Parceiros" data={partners} table="partners" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'website_url', label: 'Website'}, {key: 'logo_url', label: 'Logo', type: 'image'}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
               {adminTab === 'equipas' && <AdminList title="Gerir Equipas" data={teams} table="teams" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'category', label: 'Escalão'}, {key: 'coaches', label: 'Treinadores', type: 'richtext'}, {key: 'description', label: 'Descrição', type: 'richtext'}, {key: 'image_url', label: 'Foto', type: 'image'}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
               {adminTab === 'atletas' && <AdminList title="Gerir Atletas (Plantel)" data={teamMembers} table="team_members" fields={[{key: 'team_id', label: 'Equipa', type: 'select', required: true, options: teams.map(t => ({value: t.id, label: t.name}))}, {key: 'name', label: 'Nome', required: true}, {key: 'number', label: 'Número', type: 'number'}, {key: 'position', label: 'Posição'}, {key: 'image_url', label: 'Foto', type: 'image'}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}

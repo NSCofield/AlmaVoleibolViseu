@@ -24,6 +24,8 @@ export interface Product {
   price: number;
   description: string;
   image_url: string;
+  hide_price?: boolean;
+  hide_order_button?: boolean;
 }
 
 export interface Partner {
