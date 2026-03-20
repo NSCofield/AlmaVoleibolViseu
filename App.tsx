@@ -427,8 +427,8 @@ const AboutPage = ({ teams, organization, teamMembers }: { teams: Team[], organi
                 
                 return (
                   <div key={dept} className="mb-16 last:mb-0">
-                    <h4 className="text-xl font-bold text-primary mb-8 uppercase tracking-wider border-b border-neutral-800 pb-4">{dept}</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-8 gap-y-12">
+                    <h4 className="text-xl font-bold text-primary mb-8 uppercase tracking-wider border-b border-neutral-800 pb-4 text-center">{dept}</h4>
+                    <div className="flex flex-wrap justify-center gap-x-12 gap-y-12">
                        {deptMembers.map(member => (
                           <div key={member.id} className="flex flex-col items-center group">
                              {member.show_photo !== false && (
@@ -440,8 +440,8 @@ const AboutPage = ({ teams, organization, teamMembers }: { teams: Team[], organi
                                    />
                                 </div>
                              )}
-                             <h4 className="text-xl font-bold text-white mb-1">{member.name}</h4>
-                             <p className="text-neutral-400 text-sm uppercase font-bold tracking-wider">{member.role}</p>
+                             <h4 className="text-xl font-bold text-white mb-1 whitespace-nowrap">{member.name}</h4>
+                             <p className="text-neutral-400 text-sm uppercase font-bold tracking-wider text-center">{member.role}</p>
                           </div>
                        ))}
                     </div>
