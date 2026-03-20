@@ -458,12 +458,58 @@ const AboutPage = ({ teams, organization, teamMembers }: { teams: Team[], organi
 // --- CONTACTS PAGE COMPONENT ---
 const ContactsPage = ({ content }: { content: SiteContent | undefined }) => {
   const [formData, setFormData] = useState({ name: '', email: '', subject: '', message: '' });
+  const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
 
-  const handleContactSubmit = (e: React.FormEvent) => {
+  const validateEmail = (email: string) => {
+    return String(email)
+      .toLowerCase()
+      .match(
+        /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
+      );
+  };
+
+  const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { name, email, subject, message } = formData;
-    const body = `Nome: ${name}\nEmail: ${email}\n\nMensagem:\n${message}`;
-    window.location.href = `mailto:almavoleibolviseu@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    
+    if (!validateEmail(formData.email)) {
+      alert("Por favor, insira um email válido.");
+      return;
+    }
+
+    setStatus('sending');
+
+    try {
+      // Usando Formspree para envio real. 
+      // Nota: O destinatário precisa confirmar o email no Formspree na primeira vez que receber uma submissão.
+      const response = await fetch("https://formspree.io/f/almavoleibolviseu@gmail.com", {
+        method: "POST",
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          subject: formData.subject,
+          message: formData.message
+        })
+      });
+
+      if (response.ok) {
+        setStatus('success');
+        setFormData({ name: '', email: '', subject: '', message: '' });
+        setTimeout(() => setStatus('idle'), 5000);
+      } else {
+        throw new Error('Erro ao enviar');
+      }
+    } catch (error) {
+      console.error("Erro no envio via Formspree, a tentar mailto fallback:", error);
+      // Fallback para mailto se o serviço falhar ou não estiver configurado
+      const { name, email, subject, message } = formData;
+      const body = `Nome: ${name}\nEmail: ${email}\n\nMensagem:\n${message}`;
+      window.location.href = `mailto:almavoleibolviseu@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      setStatus('idle');
+    }
   };
 
   return (
@@ -501,14 +547,34 @@ const ContactsPage = ({ content }: { content: SiteContent | undefined }) => {
            
            <div className="bg-neutral-800 p-8 rounded-2xl shadow-xl border border-neutral-700">
               <h3 className="text-2xl font-bold text-white mb-6">Envia-nos uma mensagem</h3>
+              
+              {status === 'success' && (
+                <div className="bg-green-500/20 border border-green-500 text-green-400 p-4 rounded-lg mb-6 flex items-center gap-3 animate-fade-in">
+                  <Check size={20} />
+                  <span>Mensagem enviada com sucesso! Entraremos em contacto em breve.</span>
+                </div>
+              )}
+
               <form className="space-y-4" onSubmit={handleContactSubmit}>
-                 <div className="grid grid-cols-2 gap-4">
-                    <input type="text" placeholder="Nome" className="bg-black border border-neutral-700 text-white rounded p-3 focus:border-primary outline-none" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
-                    <input type="email" placeholder="Email" className="bg-black border border-neutral-700 text-white rounded p-3 focus:border-primary outline-none" required value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <input type="text" placeholder="Nome" className="bg-black border border-neutral-700 text-white rounded p-3 focus:border-primary outline-none transition" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                    <input type="email" placeholder="Email" className="bg-black border border-neutral-700 text-white rounded p-3 focus:border-primary outline-none transition" required value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
                  </div>
-                 <input type="text" placeholder="Assunto" className="w-full bg-black border border-neutral-700 text-white rounded p-3 focus:border-primary outline-none" required value={formData.subject} onChange={e => setFormData({...formData, subject: e.target.value})} />
-                 <textarea placeholder="A tua mensagem..." className="w-full bg-black border border-neutral-700 text-white rounded p-3 focus:border-primary outline-none h-32" required value={formData.message} onChange={e => setFormData({...formData, message: e.target.value})}></textarea>
-                 <button className="w-full bg-primary text-white font-bold py-4 rounded hover:bg-orange-700 transition uppercase tracking-widest">Enviar</button>
+                 <input type="text" placeholder="Assunto" className="w-full bg-black border border-neutral-700 text-white rounded p-3 focus:border-primary outline-none transition" required value={formData.subject} onChange={e => setFormData({...formData, subject: e.target.value})} />
+                 <textarea placeholder="A tua mensagem..." className="w-full bg-black border border-neutral-700 text-white rounded p-3 focus:border-primary outline-none h-32 transition resize-none" required value={formData.message} onChange={e => setFormData({...formData, message: e.target.value})}></textarea>
+                 
+                 <button 
+                   type="submit"
+                   disabled={status === 'sending'}
+                   className={`w-full bg-primary text-white font-bold py-4 rounded hover:bg-orange-700 transition uppercase tracking-widest flex items-center justify-center gap-2 ${status === 'sending' ? 'opacity-70 cursor-not-allowed' : ''}`}
+                 >
+                   {status === 'sending' ? (
+                     <>
+                       <Loader2 className="animate-spin" size={20} />
+                       A enviar...
+                     </>
+                   ) : 'Enviar'}
+                 </button>
               </form>
            </div>
         </div>
