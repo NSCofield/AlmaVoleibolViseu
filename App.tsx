@@ -478,11 +478,13 @@ const ContactsPage = ({ content }: { content: SiteContent | undefined }) => {
 
     setStatus('sending');
 
+    const formspreeId = import.meta.env.VITE_FORMSPREE_ID;
+    const endpoint = formspreeId 
+      ? `https://formspree.io/f/${formspreeId}` 
+      : `https://formspree.io/almavoleibolviseu@gmail.com`;
+
     try {
-      // Usando Formspree para envio real. 
-      // Nota: O destinatário precisa confirmar o email no Formspree na primeira vez que receber uma submissão.
-      const formspreeId = import.meta.env.VITE_FORMSPREE_ID || 'almavoleibolviseu@gmail.com';
-      const response = await fetch(`https://formspree.io/f/${formspreeId}`, {
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: {
           'Content-Type': 'application/json',
@@ -501,15 +503,23 @@ const ContactsPage = ({ content }: { content: SiteContent | undefined }) => {
         setFormData({ name: '', email: '', subject: '', message: '' });
         setTimeout(() => setStatus('idle'), 5000);
       } else {
-        throw new Error('Erro ao enviar');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Erro ao enviar');
       }
     } catch (error) {
-      console.error("Erro no envio via Formspree, a tentar mailto fallback:", error);
+      console.error("Erro no envio:", error);
+      setStatus('error');
+      
       // Fallback para mailto se o serviço falhar ou não estiver configurado
       const { name, email, subject, message } = formData;
       const body = `Nome: ${name}\nEmail: ${email}\n\nMensagem:\n${message}`;
-      window.location.href = `mailto:almavoleibolviseu@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-      setStatus('idle');
+      const mailtoUrl = `mailto:almavoleibolviseu@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      
+      // Aguarda um pouco para o utilizador ver a mensagem de erro antes de abrir o mailto
+      setTimeout(() => {
+        window.location.href = mailtoUrl;
+        setStatus('idle');
+      }, 2000);
     }
   };
 
@@ -553,6 +563,13 @@ const ContactsPage = ({ content }: { content: SiteContent | undefined }) => {
                 <div className="bg-green-500/20 border border-green-500 text-green-400 p-4 rounded-lg mb-6 flex items-center gap-3 animate-fade-in">
                   <Check size={20} />
                   <span>Mensagem enviada com sucesso! Entraremos em contacto em breve.</span>
+                </div>
+              )}
+
+              {status === 'error' && (
+                <div className="bg-red-500/20 border border-red-500 text-red-400 p-4 rounded-lg mb-6 flex items-center gap-3 animate-fade-in">
+                  <AlertTriangle size={20} />
+                  <span>Ocorreu um erro ao enviar. A abrir o seu cliente de email...</span>
                 </div>
               )}
 
