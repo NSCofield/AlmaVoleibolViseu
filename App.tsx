@@ -423,13 +423,15 @@ const AboutPage = ({ teams, organization, teamMembers }: { teams: Team[], organi
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-8 gap-y-12">
                  {organization.map(member => (
                     <div key={member.id} className="flex flex-col items-center group">
-                       <div className="w-40 h-40 rounded-full overflow-hidden border-4 border-neutral-800 group-hover:border-primary transition duration-300 mb-6 shadow-xl relative">
-                          <img 
-                            src={member.image_url || `https://ui-avatars.com/api/?name=${member.name}&background=random`} 
-                            alt={member.name}
-                            className="w-full h-full object-cover"
-                          />
-                       </div>
+                       {member.show_photo !== false && (
+                          <div className="w-40 h-40 rounded-full overflow-hidden border-4 border-neutral-800 group-hover:border-primary transition duration-300 mb-6 shadow-xl relative">
+                             <img 
+                               src={member.image_url || `https://ui-avatars.com/api/?name=${member.name}&background=random`} 
+                               alt={member.name}
+                               className="w-full h-full object-cover"
+                             />
+                          </div>
+                       )}
                        <h4 className="text-xl font-bold text-white mb-1">{member.name}</h4>
                        <p className="text-primary text-sm uppercase font-bold tracking-wider">{member.role}</p>
                     </div>
@@ -923,7 +925,13 @@ const AdminList = ({ title, data, table, fields, onCreate, onUpdate, onDelete }:
 
     const handleAddNew = () => {
       setEditingId(null);
-      setFormData({});
+      const initialData: any = {};
+      fields.forEach(f => {
+        if (f.defaultValue !== undefined) {
+          initialData[f.key] = f.defaultValue;
+        }
+      });
+      setFormData(initialData);
       setFiles({});
       setPreviews({});
       setIsAdding(!isAdding);
@@ -1213,6 +1221,7 @@ create table if not exists site_content (id uuid default gen_random_uuid() prima
 alter table teams add column if not exists coaches text;
 alter table products add column if not exists hide_price boolean default false;
 alter table products add column if not exists hide_order_button boolean default false;
+alter table organization add column if not exists show_photo boolean default true;
 
 -- --- RLS (Row Level Security) ---
 alter table news enable row level security;
@@ -1469,7 +1478,7 @@ export default function App() {
               {adminTab === 'equipas' && <AdminList title="Gerir Equipas" data={teams} table="teams" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'category', label: 'Escalão'}, {key: 'coaches', label: 'Treinadores', type: 'richtext'}, {key: 'description', label: 'Descrição', type: 'richtext'}, {key: 'image_url', label: 'Foto', type: 'image'}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
               {adminTab === 'atletas' && <AdminList title="Gerir Atletas (Plantel)" data={teamMembers} table="team_members" fields={[{key: 'team_id', label: 'Equipa', type: 'select', required: true, options: teams.map(t => ({value: t.id, label: t.name}))}, {key: 'name', label: 'Nome', required: true}, {key: 'number', label: 'Número', type: 'number'}, {key: 'position', label: 'Posição'}, {key: 'image_url', label: 'Foto', type: 'image'}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
               {adminTab === 'galeria' && <AdminList title="Gerir Fotos" data={gallery} table="gallery" fields={[{key: 'title', label: 'Título'}, {key: 'image_url', label: 'Imagem', type: 'image', required: true}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
-              {adminTab === 'organograma' && <AdminList title="Gerir Direção" data={organization} table="organization" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'role', label: 'Cargo', required: true}, {key: 'image_url', label: 'Foto', type: 'image'}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
+              {adminTab === 'organograma' && <AdminList title="Gerir Direção" data={organization} table="organization" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'role', label: 'Cargo', required: true}, {key: 'image_url', label: 'Foto', type: 'image'}, {key: 'show_photo', label: 'Mostrar Foto', type: 'checkbox', defaultValue: true}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
               {adminTab === 'definições' && <DatabaseFixTool />}
           </div>
         </div>
