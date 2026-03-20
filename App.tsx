@@ -481,7 +481,8 @@ const ContactsPage = ({ content }: { content: SiteContent | undefined }) => {
     try {
       // Usando Formspree para envio real. 
       // Nota: O destinatário precisa confirmar o email no Formspree na primeira vez que receber uma submissão.
-      const response = await fetch("https://formspree.io/f/almavoleibolviseu@gmail.com", {
+      const formspreeId = import.meta.env.VITE_FORMSPREE_ID || 'almavoleibolviseu@gmail.com';
+      const response = await fetch(`https://formspree.io/f/${formspreeId}`, {
         method: "POST",
         headers: {
           'Content-Type': 'application/json',
