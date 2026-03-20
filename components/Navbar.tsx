@@ -90,6 +90,12 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentPage, logoUrl
             </div>
           </div>
 
+          {/* Mobile Center Text */}
+          <div className="lg:hidden absolute left-1/2 transform -translate-x-1/2 pointer-events-none flex items-center gap-1.5">
+            <span className="font-montserrat font-extrabold text-2xl italic tracking-tighter text-white">ALMA</span>
+            <span className="font-montserrat font-extrabold text-2xl italic tracking-tighter text-primary">VISEU</span>
+          </div>
+
           {/* Right Actions: Mobile Toggle Only */}
           <div className="flex items-center gap-4">
              {/* Mobile menu button */}
