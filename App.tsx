@@ -1390,13 +1390,30 @@ const StorageManager = () => {
   };
 
   const handleDelete = async (name: string) => {
-    if (!window.confirm(`Tens a certeza que queres eliminar o ficheiro "${name}"? Esta ação é irreversível e pode quebrar imagens no site se ainda estiverem a ser usadas.`)) return;
+    if (!window.confirm(`Tens a certeza que queres eliminar o ficheiro "${name}"? Esta ação é irreversível e irá também apagar as entradas antigas associadas no site (ex: fotos da galeria).`)) return;
     
     setDeleting(name);
     try {
+      const { data: { publicUrl } } = supabase.storage.from('images').getPublicUrl(name);
+      
       const { error } = await supabase.storage.from('images').remove([name]);
       if (error) throw error;
-      setFiles(files.filter(f => f.name !== name));
+      setFiles((prev: any[]) => prev.filter(f => f.name !== name));
+
+      // Limpar referências na base de dados
+      const tablesWithImages = ['news', 'products', 'partners', 'teams', 'team_members', 'gallery', 'organization'];
+      for (const table of tablesWithImages) {
+        await supabase.from(table).delete().eq('image_url', publicUrl);
+      }
+      
+      // Também verificar se está no conteúdo do site (site_content)
+      const { data: siteContents } = await supabase.from('site_content').select('*').eq('image_url', publicUrl);
+      if (siteContents && siteContents.length > 0) {
+        for (const sc of siteContents) {
+          await supabase.from('site_content').update({ image_url: null }).eq('id', sc.id);
+        }
+      }
+
     } catch (err: any) {
       alert('Erro ao eliminar: ' + err.message);
     } finally {
@@ -1690,9 +1707,30 @@ export default function App() {
 
   const deleteItem = async (table: string, id: string) => {
     if(!window.confirm("Tem a certeza que deseja eliminar?")) return;
+
+    // Primeiro verificar se o registo tem um image_url antes de apagar
+    const { data: item } = await supabase.from(table).select('image_url').eq('id', id).single();
+    
+    // Apagar o registo da base de dados
     const { error } = await supabase.from(table).delete().eq('id', id);
-    if (!error) fetchAllData();
-    else alert("Erro ao eliminar: " + error.message);
+    
+    if (!error) {
+      // Se houver uma imagem associada e o registo foi apagado, limpamos a imagem do Storage
+      if (item && item.image_url) {
+         try {
+           const urlParts = item.image_url.split('/');
+           const fileName = urlParts[urlParts.length - 1];
+           if (fileName) {
+             await supabase.storage.from('images').remove([fileName]);
+           }
+         } catch (e) {
+           console.error("Failed to delete associated image from storage", e);
+         }
+      }
+      fetchAllData();
+    } else {
+      alert("Erro ao eliminar: " + error.message);
+    }
   };
 
   const createItem = async (table: string, data: any) => {
