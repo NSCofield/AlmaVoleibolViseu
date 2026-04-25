@@ -1372,13 +1372,15 @@ const StorageManager = () => {
     try {
       const { data, error } = await supabase.storage.from('images').list('', {
         limit: 1000,
-        sortBy: { column: 'metadata->size', order: 'desc' }
+        sortBy: { column: 'created_at', order: 'desc' }
       });
 
       if (error) throw error;
       if (data) {
-        // filter out placeholder or hidden files
-        setFiles(data.filter(f => f.name !== '.emptyFolderPlaceholder'));
+        // filter out placeholder or hidden files and sort by size locally
+        const validFiles = data.filter(f => f.name !== '.emptyFolderPlaceholder');
+        validFiles.sort((a, b) => (b.metadata?.size || 0) - (a.metadata?.size || 0));
+        setFiles(validFiles);
       }
     } catch (err: any) {
       alert('Erro ao carregar ficheiros: ' + err.message);
