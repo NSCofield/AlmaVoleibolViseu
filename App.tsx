@@ -11,6 +11,64 @@ import {
   X, ChevronLeft, Database, ShieldCheck, AlertTriangle, Lock
 } from 'lucide-react';
 
+// --- HELPER: Compress Image ---
+const compressImage = async (file: File): Promise<File> => {
+  if (!file.type.startsWith('image/')) return file;
+  if (file.type === 'image/svg+xml' || file.type === 'image/gif') return file;
+  
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 1200; // Limit resolution to save massive amount of bandwidth
+        const MAX_HEIGHT = 1200;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = Math.max(1, width);
+        canvas.height = Math.max(1, height);
+        const ctx = canvas.getContext('2d');
+        if (ctx) ctx.drawImage(img, 0, 0, width, height);
+
+        // Compress as WebP for even better sizes, fallback to JPEG
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const newFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".webp", {
+                type: 'image/webp',
+                lastModified: Date.now(),
+              });
+              resolve(newFile);
+            } else {
+              resolve(file);
+            }
+          },
+          'image/webp',
+          0.8
+        );
+      };
+      img.onerror = () => resolve(file);
+    };
+    reader.onerror = () => resolve(file);
+  });
+};
+
 // --- HELPER: Strip HTML for previews ---
 const stripHtml = (html: string) => {
    if (!html) return "";
@@ -1043,9 +1101,10 @@ const AdminList = ({ title, data, table, fields, onCreate, onUpdate, onDelete }:
         for (const key of Object.keys(files)) {
             const file = files[key];
             if (file) {
-              const fileExt = file.name.split('.').pop();
+              const compressedFile = await compressImage(file);
+              const fileExt = compressedFile.name.split('.').pop() || 'webp';
               const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-              const { error: uploadError } = await supabase.storage.from('images').upload(fileName, file);
+              const { error: uploadError } = await supabase.storage.from('images').upload(fileName, compressedFile);
               if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
               const { data: { publicUrl } } = supabase.storage.from('images').getPublicUrl(fileName);
               finalData[key] = publicUrl;
@@ -1298,6 +1357,143 @@ const SiteContentEditor = ({ siteContent, onUpdate }: { siteContent: Record<stri
   );
 };
 
+// --- STORAGE MANAGER TOOL ---
+const StorageManager = () => {
+  const [files, setFiles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchFiles();
+  }, []);
+
+  const fetchFiles = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.storage.from('images').list('', {
+        limit: 1000,
+        sortBy: { column: 'metadata->size', order: 'desc' }
+      });
+
+      if (error) throw error;
+      if (data) {
+        // filter out placeholder or hidden files
+        setFiles(data.filter(f => f.name !== '.emptyFolderPlaceholder'));
+      }
+    } catch (err: any) {
+      alert('Erro ao carregar ficheiros: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (name: string) => {
+    if (!window.confirm(`Tens a certeza que queres eliminar o ficheiro "${name}"? Esta ação é irreversível e pode quebrar imagens no site se ainda estiverem a ser usadas.`)) return;
+    
+    setDeleting(name);
+    try {
+      const { error } = await supabase.storage.from('images').remove([name]);
+      if (error) throw error;
+      setFiles(files.filter(f => f.name !== name));
+    } catch (err: any) {
+      alert('Erro ao eliminar: ' + err.message);
+    } finally {
+      setDeleting(null);
+    }
+  };
+
+  const formatSize = (bytes: number) => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  return (
+    <div className="bg-white p-6 rounded shadow border" style={{ color: '#000' }}>
+      <div className="flex justify-between items-center mb-6">
+        <div>
+           <h3 className="text-xl font-bold font-montserrat">Gestão de Imagens (Bandwidth)</h3>
+           <p className="text-sm text-neutral-600">Analisa e elimina ficheiros grandes para reduzir o consumo de cache e largura de banda do Supabase.</p>
+        </div>
+        <button onClick={fetchFiles} className="bg-neutral-100 hover:bg-neutral-200 text-neutral-800 px-4 py-2 rounded">
+          Atualizar
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center p-8"><Loader2 className="animate-spin text-primary" size={32} /></div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-neutral-100 border-b">
+                <th className="p-3 font-bold">Preview</th>
+                <th className="p-3 font-bold">Ficheiro</th>
+                <th className="p-3 font-bold text-right">Tamanho</th>
+                <th className="p-3 font-bold text-center">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {files.map(file => {
+                const isImage = file.metadata?.mimetype?.startsWith('image/');
+                const { data } = supabase.storage.from('images').getPublicUrl(file.name);
+                
+                return (
+                  <tr key={file.name} className="border-b hover:bg-neutral-50 transition">
+                    <td className="p-3 w-20">
+                      {isImage ? (
+                        <div className="w-16 h-16 bg-neutral-200 rounded overflow-hidden flex items-center justify-center">
+                           <img src={data.publicUrl} alt={file.name} className="max-w-full max-h-full object-contain" />
+                        </div>
+                      ) : (
+                        <div className="w-16 h-16 bg-neutral-200 rounded flex items-center justify-center text-neutral-500">
+                           <FileText size={24} />
+                        </div>
+                      )}
+                    </td>
+                    <td className="p-3">
+                      <a href={data.publicUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline break-all block w-64 md:w-auto">
+                        {file.name}
+                      </a>
+                      <div className="text-xs text-neutral-500 mt-1">{new Date(file.created_at).toLocaleString()}</div>
+                    </td>
+                    <td className="p-3 text-right whitespace-nowrap">
+                      <span className={`font-mono ${file.metadata?.size > 1000000 ? 'text-red-600 font-bold' : ''}`}>
+                        {formatSize(file.metadata?.size || 0)}
+                      </span>
+                    </td>
+                    <td className="p-3 text-center">
+                      <button 
+                        onClick={() => handleDelete(file.name)} 
+                        disabled={deleting === file.name}
+                        title="Eliminar ficheiro" 
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded transition"
+                      >
+                        {deleting === file.name ? <Loader2 className="animate-spin" size={20} /> : <Trash size={20} />}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+              {files.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="p-8 text-center text-neutral-500">Nenhum ficheiro encontrado.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+          
+          <div className="mt-4 text-right p-4 bg-neutral-50 rounded italic text-sm">
+            Total armazenado: <span className="font-bold">{formatSize(files.reduce((acc, f) => acc + (f.metadata?.size || 0), 0))}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // --- DATABASE FIX TOOL ---
 const DatabaseFixTool = () => {
   const sqlScript = `
@@ -1514,9 +1710,10 @@ export default function App() {
       let imageUrl = siteContent[section]?.image_url;
 
       if (imageFile) {
-         const fileExt = imageFile.name.split('.').pop();
+         const compressedFile = await compressImage(imageFile);
+         const fileExt = compressedFile.name.split('.').pop() || 'webp';
          const fileName = `${section}_${Date.now()}.${fileExt}`;
-         const { error: uploadError } = await supabase.storage.from('images').upload(fileName, imageFile);
+         const { error: uploadError } = await supabase.storage.from('images').upload(fileName, compressedFile);
          if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
          const { data: { publicUrl } } = supabase.storage.from('images').getPublicUrl(fileName);
          imageUrl = publicUrl;
@@ -1553,9 +1750,9 @@ export default function App() {
               <button onClick={() => setAdminTab('conteudo')} className={`w-full text-left p-2 rounded capitalize font-montserrat font-extrabold ${adminTab === 'conteudo' ? 'bg-primary text-white' : 'hover:bg-neutral-100 text-neutral-700'}`}>
                   <span className="flex items-center gap-2"><Layout size={16}/> Conteúdos</span>
               </button>
-              {['menu', 'noticias', 'jogos', 'loja', 'parceiros', 'equipas', 'atletas', 'galeria', 'órgãos sociais', 'definições'].map(tab => (
+              {['menu', 'noticias', 'jogos', 'loja', 'parceiros', 'equipas', 'atletas', 'galeria', 'órgãos sociais', 'imagens', 'definições'].map(tab => (
                 <button key={tab} onClick={() => setAdminTab(tab)} className={`w-full text-left p-2 rounded capitalize font-montserrat font-extrabold ${adminTab === tab ? 'bg-primary text-white' : 'hover:bg-neutral-100 text-neutral-700'}`}>
-                  {tab === 'definições' ? <span className="flex items-center gap-2"><Settings size={16}/> Definições</span> : tab === 'menu' ? <span className="flex items-center gap-2"><List size={16}/> Menu</span> : tab}
+                  {tab === 'definições' ? <span className="flex items-center gap-2"><Settings size={16}/> Definições</span> : tab === 'imagens' ? <span className="flex items-center gap-2"><ImageIcon size={16}/> Imagens</span> : tab === 'menu' ? <span className="flex items-center gap-2"><List size={16}/> Menu</span> : tab}
                 </button>
               ))}
             </div>
@@ -1575,6 +1772,7 @@ export default function App() {
               {adminTab === 'atletas' && <AdminList title="Gerir Atletas (Plantel)" data={teamMembers} table="team_members" fields={[{key: 'team_id', label: 'Equipa', type: 'select', required: true, options: teams.map(t => ({value: t.id, label: t.name}))}, {key: 'name', label: 'Nome', required: true}, {key: 'number', label: 'Número', type: 'number'}, {key: 'position', label: 'Posição'}, {key: 'image_url', label: 'Foto', type: 'image'}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
               {adminTab === 'galeria' && <AdminList title="Gerir Fotos" data={gallery} table="gallery" fields={[{key: 'title', label: 'Título'}, {key: 'image_url', label: 'Imagem', type: 'image', required: true}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
               {adminTab === 'órgãos sociais' && <AdminList title="Gerir Órgãos Sociais" data={organization} table="organization" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'role', label: 'Cargo', required: true}, {key: 'department', label: 'Órgão Social', type: 'select', required: true, defaultValue: 'Direção', options: [{value: 'Mesa da Assembleia Geral', label: 'Mesa da Assembleia Geral'}, {value: 'Conselho Fiscal', label: 'Conselho Fiscal'}, {value: 'Direção', label: 'Direção'}]}, {key: 'image_url', label: 'Foto', type: 'image'}, {key: 'show_photo', label: 'Mostrar Foto', type: 'checkbox', defaultValue: true}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
+              {adminTab === 'imagens' && <StorageManager />}
               {adminTab === 'definições' && <DatabaseFixTool />}
           </div>
         </div>
