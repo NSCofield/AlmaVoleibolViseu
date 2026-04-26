@@ -1362,6 +1362,7 @@ const StorageManager = () => {
   const [files, setFiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [usages, setUsages] = useState<Record<string, { usedIn: string[] }>>({});
 
   useEffect(() => {
     fetchFiles();
@@ -1381,6 +1382,59 @@ const StorageManager = () => {
         const validFiles = data.filter(f => f.name !== '.emptyFolderPlaceholder');
         validFiles.sort((a, b) => (b.metadata?.size || 0) - (a.metadata?.size || 0));
         setFiles(validFiles);
+
+        // Fetch usages
+        const newUsages: Record<string, { usedIn: string[] }> = {};
+        
+        const tablesWithImages = [
+          { table: 'news', label: 'Notícias' }, 
+          { table: 'products', label: 'Loja' }, 
+          { table: 'partners', label: 'Parceiros' }, 
+          { table: 'teams', label: 'Equipas' }, 
+          { table: 'team_members', label: 'Atletas' }, 
+          { table: 'gallery', label: 'Galeria' }, 
+          { table: 'organization', label: 'Órgãos Sociais' }
+        ];
+
+        validFiles.forEach(f => {
+            newUsages[f.name] = { usedIn: [] };
+        });
+
+        // Get public URLs mapping
+        const urlToName: Record<string, string> = {};
+        validFiles.forEach(f => {
+            const { data: { publicUrl } } = supabase.storage.from('images').getPublicUrl(f.name);
+            urlToName[publicUrl] = f.name;
+        });
+
+        for (const t of tablesWithImages) {
+           const { data: rows } = await supabase.from(t.table).select('image_url').not('image_url', 'is', null);
+           if (rows) {
+              rows.forEach((r: any) => {
+                 const fileName = urlToName[r.image_url];
+                 if (fileName) {
+                    if (!newUsages[fileName].usedIn.includes(t.label)) {
+                        newUsages[fileName].usedIn.push(t.label);
+                    }
+                 }
+              });
+           }
+        }
+
+        const { data: siteContents } = await supabase.from('site_content').select('section, image_url').not('image_url', 'is', null);
+        if (siteContents) {
+           siteContents.forEach((r: any) => {
+               const fileName = urlToName[r.image_url];
+               if (fileName) {
+                  const label = `Conteúdo (${r.section})`;
+                  if (!newUsages[fileName].usedIn.includes(label)) {
+                      newUsages[fileName].usedIn.push(label);
+                  }
+               }
+           });
+        }
+        
+        setUsages(newUsages);
       }
     } catch (err: any) {
       alert('Erro ao carregar ficheiros: ' + err.message);
@@ -1390,7 +1444,7 @@ const StorageManager = () => {
   };
 
   const handleDelete = async (name: string) => {
-    if (!window.confirm(`Tens a certeza que queres eliminar o ficheiro "${name}"? Esta ação é irreversível e irá também apagar as entradas antigas associadas no site (ex: fotos da galeria).`)) return;
+    if (!window.confirm(`Tens a certeza que queres eliminar o ficheiro "${name}"? Esta ação é irreversível e irá também apagar as entradas associadas no site.`)) return;
     
     setDeleting(name);
     try {
@@ -1449,7 +1503,7 @@ const StorageManager = () => {
             <thead>
               <tr className="bg-neutral-100 border-b">
                 <th className="p-3 font-bold">Preview</th>
-                <th className="p-3 font-bold">Ficheiro</th>
+                <th className="p-3 font-bold">Ficheiro / Uso</th>
                 <th className="p-3 font-bold text-right">Tamanho</th>
                 <th className="p-3 font-bold text-center">Ações</th>
               </tr>
@@ -1476,7 +1530,21 @@ const StorageManager = () => {
                       <a href={data.publicUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline break-all block w-64 md:w-auto">
                         {file.name}
                       </a>
-                      <div className="text-xs text-neutral-500 mt-1">{new Date(file.created_at).toLocaleString()}</div>
+                      <div className="text-xs text-neutral-500 mt-1 mb-2">{new Date(file.created_at).toLocaleString()}</div>
+                      
+                      {usages[file.name] && usages[file.name].usedIn.length > 0 ? (
+                         <div className="flex flex-wrap gap-1">
+                            {usages[file.name].usedIn.map((u, i) => (
+                               <span key={i} className="bg-green-100 text-green-800 text-[10px] px-2 py-0.5 rounded border border-green-200 font-bold">
+                                 Usado em: {u}
+                               </span>
+                            ))}
+                         </div>
+                      ) : (
+                         <span className="bg-red-100 text-red-800 text-[10px] px-2 py-0.5 rounded border border-red-200 font-bold">
+                            Não está a ser usada
+                         </span>
+                      )}
                     </td>
                     <td className="p-3 text-right whitespace-nowrap">
                       <span className={`font-mono ${file.metadata?.size > 1000000 ? 'text-red-600 font-bold' : ''}`}>
