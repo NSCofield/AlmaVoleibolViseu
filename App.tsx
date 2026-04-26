@@ -1387,13 +1387,13 @@ const StorageManager = () => {
         const newUsages: Record<string, { usedIn: string[] }> = {};
         
         const tablesWithImages = [
-          { table: 'news', label: 'Notícias' }, 
-          { table: 'products', label: 'Loja' }, 
-          { table: 'partners', label: 'Parceiros' }, 
-          { table: 'teams', label: 'Equipas' }, 
-          { table: 'team_members', label: 'Atletas' }, 
-          { table: 'gallery', label: 'Galeria' }, 
-          { table: 'organization', label: 'Órgãos Sociais' }
+          { table: 'news', label: 'Notícias', column: 'image_url' }, 
+          { table: 'products', label: 'Loja', column: 'image_url' }, 
+          { table: 'partners', label: 'Parceiros', column: 'logo_url' }, 
+          { table: 'teams', label: 'Equipas', column: 'image_url' }, 
+          { table: 'team_members', label: 'Atletas', column: 'image_url' }, 
+          { table: 'gallery', label: 'Galeria', column: 'image_url' }, 
+          { table: 'organization', label: 'Órgãos Sociais', column: 'image_url' }
         ];
 
         validFiles.forEach(f => {
@@ -1407,11 +1407,29 @@ const StorageManager = () => {
             urlToName[publicUrl] = f.name;
         });
 
+        const findFileNameByUrl = (url: string | null) => {
+            if (!url) return null;
+            if (urlToName[url]) return urlToName[url];
+            
+            // Tentar extrair do URL diretamente caso a base tenha gravado com encoding diferente
+            try {
+                const urlObj = new URL(url);
+                const pathParts = urlObj.pathname.split('/');
+                let name = pathParts[pathParts.length - 1];
+                if (name) {
+                    name = decodeURIComponent(name);
+                    if (newUsages[name]) return name;
+                }
+            } catch (e) {}
+
+            return null;
+        };
+
         for (const t of tablesWithImages) {
-           const { data: rows } = await supabase.from(t.table).select('image_url').not('image_url', 'is', null);
+           const { data: rows } = await supabase.from(t.table).select(t.column).not(t.column, 'is', null);
            if (rows) {
               rows.forEach((r: any) => {
-                 const fileName = urlToName[r.image_url];
+                 const fileName = findFileNameByUrl(r[t.column]);
                  if (fileName) {
                     if (!newUsages[fileName].usedIn.includes(t.label)) {
                         newUsages[fileName].usedIn.push(t.label);
@@ -1424,7 +1442,7 @@ const StorageManager = () => {
         const { data: siteContents } = await supabase.from('site_content').select('section, image_url').not('image_url', 'is', null);
         if (siteContents) {
            siteContents.forEach((r: any) => {
-               const fileName = urlToName[r.image_url];
+               const fileName = findFileNameByUrl(r.image_url);
                if (fileName) {
                   const label = `Conteúdo (${r.section})`;
                   if (!newUsages[fileName].usedIn.includes(label)) {
@@ -1455,9 +1473,18 @@ const StorageManager = () => {
       setFiles((prev: any[]) => prev.filter(f => f.name !== name));
 
       // Limpar referências na base de dados
-      const tablesWithImages = ['news', 'products', 'partners', 'teams', 'team_members', 'gallery', 'organization'];
-      for (const table of tablesWithImages) {
-        await supabase.from(table).delete().eq('image_url', publicUrl);
+      const tablesWithImagesMap = [
+        { table: 'news', column: 'image_url' }, 
+        { table: 'products', column: 'image_url' }, 
+        { table: 'partners', column: 'logo_url' }, 
+        { table: 'teams', column: 'image_url' }, 
+        { table: 'team_members', column: 'image_url' }, 
+        { table: 'gallery', column: 'image_url' }, 
+        { table: 'organization', column: 'image_url' }
+      ];
+
+      for (const t of tablesWithImagesMap) {
+        await supabase.from(t.table).delete().eq(t.column, publicUrl);
       }
       
       // Também verificar se está no conteúdo do site (site_content)
@@ -1776,20 +1803,22 @@ export default function App() {
   const deleteItem = async (table: string, id: string) => {
     if(!window.confirm("Tem a certeza que deseja eliminar?")) return;
 
-    // Primeiro verificar se o registo tem um image_url antes de apagar
-    const { data: item } = await supabase.from(table).select('image_url').eq('id', id).single();
+    // Primeiro verificar se o registo tem um image_url ou logo_url antes de apagar
+    const imageColumn = table === 'partners' ? 'logo_url' : 'image_url';
+    const { data: item } = await supabase.from(table).select(imageColumn).eq('id', id).single();
     
     // Apagar o registo da base de dados
     const { error } = await supabase.from(table).delete().eq('id', id);
     
     if (!error) {
       // Se houver uma imagem associada e o registo foi apagado, limpamos a imagem do Storage
-      if (item && item.image_url) {
+      const imageUrl = item ? item[imageColumn] : null;
+      if (imageUrl) {
          try {
-           const urlParts = item.image_url.split('/');
+           const urlParts = imageUrl.split('/');
            const fileName = urlParts[urlParts.length - 1];
            if (fileName) {
-             await supabase.storage.from('images').remove([fileName]);
+             await supabase.storage.from('images').remove([decodeURIComponent(fileName)]);
            }
          } catch (e) {
            console.error("Failed to delete associated image from storage", e);
