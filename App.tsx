@@ -346,7 +346,7 @@ const ImageModal = ({ items, initialIndex, isOpen, onClose, type }: { items: Mod
                             {currentItem.members.map(member => (
                               <div key={member.id} className="flex flex-col items-center bg-black p-2 rounded-lg border border-neutral-800 hover:border-primary transition group">
                                   <div className="w-12 h-12 rounded-full overflow-hidden mb-2 bg-neutral-800 border-2 border-neutral-700 group-hover:border-primary transition">
-                                      <img src={member.image_url || `https://ui-avatars.com/api/?name=${member.name}&background=random`} alt={member.name} className="w-full h-full object-cover" />
+                                      <img src={member.image_url || `https://ui-avatars.com/api/?name=${member.name}&background=eb5929&color=fff`} alt={member.name} className="w-full h-full object-cover" />
                                   </div>
                                   <div className="font-bold text-white text-[10px] text-center leading-tight w-full truncate" title={member.name}>{member.name}</div>
                                   <div className="text-[9px] text-primary font-bold uppercase">{member.number ? `#${member.number}` : ''} {member.position}</div>
@@ -492,7 +492,7 @@ const AboutPage = ({ teams, organization, teamMembers }: { teams: Team[], organi
                              {member.show_photo !== false && (
                                 <div className="w-40 h-40 rounded-full overflow-hidden border-4 border-neutral-800 group-hover:border-primary transition duration-300 mb-6 shadow-xl relative">
                                    <img 
-                                     src={member.image_url || `https://ui-avatars.com/api/?name=${member.name}&background=random`} 
+                                     src={member.image_url || `https://ui-avatars.com/api/?name=${member.name}&background=eb5929&color=fff`} 
                                      alt={member.name}
                                      className="w-full h-full object-cover"
                                    />
