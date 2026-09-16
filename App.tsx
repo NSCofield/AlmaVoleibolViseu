@@ -480,7 +480,10 @@ const AboutPage = ({ teams, organization, teamMembers }: { teams: Team[], organi
               <h3 className="text-2xl font-bold text-white mb-12 uppercase tracking-widest">Órgãos Sociais</h3>
               
               {['Mesa da Assembleia Geral', 'Conselho Fiscal', 'Direção'].map(dept => {
-                const deptMembers = organization.filter(m => (m.department || 'Direção') === dept);
+                const deptMembers = organization
+                  .filter(m => (m.department || 'Direção') === dept)
+                  .sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+                
                 if (deptMembers.length === 0) return null;
                 
                 return (
@@ -1741,14 +1744,13 @@ export default function App() {
     setLoading(true);
     try {
       // Fetch independent tables first
-      const [newsRes, matchesRes, prodRes, partRes, teamRes, galRes, orgRes, contentRes] = await Promise.all([
+      const [newsRes, matchesRes, prodRes, partRes, teamRes, galRes, contentRes] = await Promise.all([
         supabase.from('news').select('*').order('created_at', { ascending: false }),
         supabase.from('matches').select('*').order('date', { ascending: true }),
         supabase.from('products').select('*'),
         supabase.from('partners').select('*'),
         supabase.from('teams').select('*').order('name', { ascending: true }),
         supabase.from('gallery').select('*'),
-        supabase.from('organization').select('*').order('display_order', { ascending: true }),
         supabase.from('site_content').select('*')
       ]);
 
@@ -1758,7 +1760,16 @@ export default function App() {
       if (partRes.data) setPartners(partRes.data);
       if (teamRes.data) setTeams(teamRes.data);
       if (galRes.data) setGallery(galRes.data);
-      if (orgRes.data) setOrganization(orgRes.data);
+      
+      // Fetch organization separately to handle potential missing column display_order
+      const orgRes = await supabase.from('organization').select('*').order('display_order', { ascending: true });
+      if (orgRes.error && orgRes.error.message.includes('display_order')) {
+          // Fallback if column doesn't exist
+          const fallback = await supabase.from('organization').select('*').order('created_at', { ascending: true });
+          if (fallback.data) setOrganization(fallback.data);
+      } else if (orgRes.data) {
+          setOrganization(orgRes.data);
+      }
       
       if (contentRes.data) {
         const contentMap: Record<string, SiteContent> = {};
@@ -1832,13 +1843,29 @@ export default function App() {
   };
 
   const createItem = async (table: string, data: any) => {
-    const { error } = await supabase.from(table).insert([data]);
+    let { error } = await supabase.from(table).insert([data]);
+    
+    // If we get an error about display_order missing, retry without it
+    if (error && error.message.includes('display_order')) {
+        const { display_order, ...retryData } = data;
+        const retry = await supabase.from(table).insert([retryData]);
+        error = retry.error;
+    }
+
     if (error) alert("Erro ao criar: " + error.message);
     else fetchAllData();
   };
   
   const updateItem = async (table: string, id: string, data: any) => {
-    const { error } = await supabase.from(table).update(data).eq('id', id);
+    let { error } = await supabase.from(table).update(data).eq('id', id);
+
+    // If we get an error about display_order missing, retry without it
+    if (error && error.message.includes('display_order')) {
+        const { display_order, ...retryData } = data;
+        const retry = await supabase.from(table).update(retryData).eq('id', id);
+        error = retry.error;
+    }
+
     if (error) alert("Erro ao atualizar: " + error.message);
     else fetchAllData();
   };
