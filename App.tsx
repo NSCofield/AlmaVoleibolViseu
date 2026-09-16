@@ -1619,7 +1619,7 @@ create table if not exists partners (id uuid default gen_random_uuid() primary k
 create table if not exists teams (id uuid default gen_random_uuid() primary key, name text, category text, description text, image_url text, coaches text);
 create table if not exists team_members (id uuid default gen_random_uuid() primary key, team_id uuid references teams(id), name text, number text, position text, image_url text);
 create table if not exists gallery (id uuid default gen_random_uuid() primary key, title text, image_url text);
-create table if not exists organization (id uuid default gen_random_uuid() primary key, created_at timestamptz default now(), name text, role text, image_url text);
+create table if not exists organization (id uuid default gen_random_uuid() primary key, created_at timestamptz default now(), name text, role text, image_url text, display_order int default 0);
 create table if not exists site_content (id uuid default gen_random_uuid() primary key, section text unique not null, title text, subtitle text, image_url text);
 
 -- --- MIGRATIONS ---
@@ -1628,6 +1628,7 @@ alter table products add column if not exists hide_price boolean default false;
 alter table products add column if not exists hide_order_button boolean default false;
 alter table organization add column if not exists show_photo boolean default true;
 alter table organization add column if not exists department text default 'Direção';
+alter table organization add column if not exists display_order int default 0;
 
 -- --- RLS (Row Level Security) ---
 alter table news enable row level security;
@@ -1747,7 +1748,7 @@ export default function App() {
         supabase.from('partners').select('*'),
         supabase.from('teams').select('*').order('name', { ascending: true }),
         supabase.from('gallery').select('*'),
-        supabase.from('organization').select('*').order('created_at', { ascending: true }),
+        supabase.from('organization').select('*').order('display_order', { ascending: true }),
         supabase.from('site_content').select('*')
       ]);
 
@@ -1908,7 +1909,7 @@ export default function App() {
               {adminTab === 'equipas' && <AdminList title="Gerir Equipas" data={teams} table="teams" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'category', label: 'Escalão'}, {key: 'coaches', label: 'Treinadores', type: 'richtext'}, {key: 'description', label: 'Descrição', type: 'richtext'}, {key: 'image_url', label: 'Foto', type: 'image'}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
               {adminTab === 'atletas' && <AdminList title="Gerir Atletas (Plantel)" data={teamMembers} table="team_members" fields={[{key: 'team_id', label: 'Equipa', type: 'select', required: true, options: teams.map(t => ({value: t.id, label: t.name}))}, {key: 'name', label: 'Nome', required: true}, {key: 'number', label: 'Número', type: 'number'}, {key: 'position', label: 'Posição'}, {key: 'image_url', label: 'Foto', type: 'image'}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
               {adminTab === 'galeria' && <AdminList title="Gerir Fotos" data={gallery} table="gallery" fields={[{key: 'title', label: 'Título'}, {key: 'image_url', label: 'Imagem', type: 'image', required: true}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
-              {adminTab === 'órgãos sociais' && <AdminList title="Gerir Órgãos Sociais" data={organization} table="organization" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'role', label: 'Cargo', required: true}, {key: 'department', label: 'Órgão Social', type: 'select', required: true, defaultValue: 'Direção', options: [{value: 'Mesa da Assembleia Geral', label: 'Mesa da Assembleia Geral'}, {value: 'Conselho Fiscal', label: 'Conselho Fiscal'}, {value: 'Direção', label: 'Direção'}]}, {key: 'image_url', label: 'Foto', type: 'image'}, {key: 'show_photo', label: 'Mostrar Foto', type: 'checkbox', defaultValue: true}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
+              {adminTab === 'órgãos sociais' && <AdminList title="Gerir Órgãos Sociais" data={organization} table="organization" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'role', label: 'Cargo', required: true}, {key: 'department', label: 'Órgão Social', type: 'select', required: true, defaultValue: 'Direção', options: [{value: 'Mesa da Assembleia Geral', label: 'Mesa da Assembleia Geral'}, {value: 'Conselho Fiscal', label: 'Conselho Fiscal'}, {value: 'Direção', label: 'Direção'}]}, {key: 'display_order', label: 'Posição (Ordem)', type: 'number', defaultValue: 0}, {key: 'image_url', label: 'Foto', type: 'image'}, {key: 'show_photo', label: 'Mostrar Foto', type: 'checkbox', defaultValue: true}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
               {adminTab === 'imagens' && <StorageManager />}
               {adminTab === 'definições' && <DatabaseFixTool />}
           </div>

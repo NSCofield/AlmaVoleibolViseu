@@ -66,6 +66,7 @@ export interface OrganizationMember {
   image_url: string;
   show_photo?: boolean;
   department?: string;
+  display_order?: number;
 }
 
 export interface SiteContent {
