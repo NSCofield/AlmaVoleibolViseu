@@ -1,16 +1,25 @@
 import React from 'react';
-import { Facebook, Instagram, Mail, MapPin, Phone, Lock } from 'lucide-react';
+import { Facebook, Instagram, Youtube, Mail, MapPin, Phone, Lock } from 'lucide-react';
 import { SiteContent } from '../types';
 
 interface FooterProps {
   content?: SiteContent;
   onNavigate: (page: string) => void;
+  siteContent?: Record<string, SiteContent>;
 }
 
-export const Footer: React.FC<FooterProps> = ({ content, onNavigate }) => {
+export const Footer: React.FC<FooterProps> = ({ content, onNavigate, siteContent }) => {
   const title = content?.title || "";
   const description = content?.subtitle || "Promovendo o voleibol em Viseu com paixão, dedicação e espírito de equipa. Junta-te a nós e faz parte desta grande família.";
   const image = content?.image_url;
+
+  const socialLinks = {
+    facebook: siteContent?.['social_facebook']?.title || "https://www.facebook.com/VivAlmaVoleibolViseu",
+    instagram: siteContent?.['social_instagram']?.title || "https://www.instagram.com/vivalma.voleibol.viseu/",
+    youtube: siteContent?.['social_youtube']?.title || ""
+  };
+
+  const contactEmail = siteContent?.['contact_email']?.title || 'almavoleibolviseu@gmail.com';
 
   return (
     <footer className="bg-secondary text-white pt-10 pb-6 border-t-4 border-primary">
@@ -35,7 +44,7 @@ export const Footer: React.FC<FooterProps> = ({ content, onNavigate }) => {
             </li>
             <li className="flex items-center gap-3">
               <Mail className="text-primary" size={18} />
-              <a href="mailto:almavoleibolviseu@gmail.com" className="hover:text-primary transition">almavoleibolviseu@gmail.com</a>
+              <a href={`mailto:${contactEmail}`} className="hover:text-primary transition">{contactEmail}</a>
             </li>
             <li className="flex items-start gap-3">
               <Phone className="text-primary mt-1" size={18} />
@@ -50,13 +59,22 @@ export const Footer: React.FC<FooterProps> = ({ content, onNavigate }) => {
         {/* Social */}
         <div>
           <h4 className="text-lg font-bold mb-4 border-b border-gray-700 pb-2">Segue-nos</h4>
-          <div className="flex space-x-4">
-            <a href="https://www.facebook.com/VivAlmaVoleibolViseu" target="_blank" rel="noopener noreferrer" className="bg-gray-800 p-3 rounded-full hover:bg-primary transition-colors duration-300">
-              <Facebook size={20} />
-            </a>
-            <a href="https://www.instagram.com/vivalma.voleibol.viseu/" target="_blank" rel="noopener noreferrer" className="bg-gray-800 p-3 rounded-full hover:bg-primary transition-colors duration-300">
-              <Instagram size={20} />
-            </a>
+          <div className="flex flex-wrap gap-4">
+            {socialLinks.facebook && (
+              <a href={socialLinks.facebook} target="_blank" rel="noopener noreferrer" className="bg-gray-800 p-3 rounded-full hover:bg-primary transition-all duration-300 transform hover:scale-110 shadow-lg shadow-black/20" title="Facebook">
+                <Facebook size={20} />
+              </a>
+            )}
+            {socialLinks.instagram && (
+              <a href={socialLinks.instagram} target="_blank" rel="noopener noreferrer" className="bg-gray-800 p-3 rounded-full hover:bg-primary transition-all duration-300 transform hover:scale-110 shadow-lg shadow-black/20" title="Instagram">
+                <Instagram size={20} />
+              </a>
+            )}
+            {socialLinks.youtube && (
+              <a href={socialLinks.youtube} target="_blank" rel="noopener noreferrer" className="bg-gray-800 p-3 rounded-full hover:bg-primary transition-all duration-300 transform hover:scale-110 shadow-lg shadow-black/20" title="YouTube">
+                <Youtube size={20} />
+              </a>
+            )}
           </div>
         </div>
       </div>

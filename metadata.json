@@ -1,5 +1,8 @@
 {
-  "name": "AlmaVoleibolViseu",
-  "description": "Website oficial do clube de voleibol ALMA de Viseu. Notícias, calendário, loja e gestão de clube.",
-  "requestFramePermissions": []
+  "name": "ALMA Viseu - Clube de Voleibol",
+  "description": "Website oficial do ALMA Viseu, clube de voleibol dedicado à formação e competição em Viseu. Acompanha as últimas notícias, resultados, calendários de jogos e a nossa loja oficial.",
+  "requestFramePermissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

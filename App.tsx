@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 import { supabase } from './lib/supabase';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
@@ -8,11 +11,31 @@ import {
   Info, Camera, Mail, Trophy, ArrowRight, ChevronRight, Edit, Trash, Plus, Save, Copy, Check,
   LogIn, UserPlus, Upload, Image as ImageIcon, Settings, Phone, Home, Layout, FileText,
   Bold, Italic, Underline, Type, Palette, AlignLeft, AlignCenter, AlignRight, List, ListOrdered, Highlighter,
-  X, ChevronLeft, Database, ShieldCheck, AlertTriangle, Lock
+  X, ChevronLeft, Database, ShieldCheck, AlertTriangle, Lock, Search, Share2, Facebook, Instagram, Youtube
 } from 'lucide-react';
 
+// --- UTILITIES ---
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
+// --- ANIMATION COMPONENTS ---
+const Reveal = ({ children, className, delay = 0 }: { children: React.ReactNode, className?: string, delay?: number }) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-100px" }}
+      transition={{ duration: 0.8, delay, ease: [0.21, 0.47, 0.32, 0.98] }}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  );
+};
+
 // --- HELPER: Compress Image ---
-const compressImage = async (file: File): Promise<File> => {
+const compressImage = async (file: File, maxWidth = 1000, maxHeight = 1000): Promise<File> => {
   if (!file.type.startsWith('image/')) return file;
   if (file.type === 'image/svg+xml' || file.type === 'image/gif') return file;
   
@@ -24,8 +47,8 @@ const compressImage = async (file: File): Promise<File> => {
       img.src = event.target?.result as string;
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 1200; // Limit resolution to save massive amount of bandwidth
-        const MAX_HEIGHT = 1200;
+        const MAX_WIDTH = maxWidth; 
+        const MAX_HEIGHT = maxHeight;
         let width = img.width;
         let height = img.height;
 
@@ -44,7 +67,11 @@ const compressImage = async (file: File): Promise<File> => {
         canvas.width = Math.max(1, width);
         canvas.height = Math.max(1, height);
         const ctx = canvas.getContext('2d');
-        if (ctx) ctx.drawImage(img, 0, 0, width, height);
+        if (ctx) {
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, 0, 0, width, height);
+        }
 
         // Compress as WebP for even better sizes, fallback to JPEG
         canvas.toBlob(
@@ -60,7 +87,7 @@ const compressImage = async (file: File): Promise<File> => {
             }
           },
           'image/webp',
-          0.8
+          0.7
         );
       };
       img.onerror = () => resolve(file);
@@ -69,7 +96,21 @@ const compressImage = async (file: File): Promise<File> => {
   });
 };
 
-// --- HELPER: Strip HTML for previews ---
+// --- HELPER: Get Optimized Supabase Image URL ---
+const getOptimizedUrl = (url: string, width: number = 800) => {
+  if (!url) return url;
+  
+  // Se for uma imagem externa (não supabase), tentamos otimizar na mesma
+  // Se for supabase, usamos o proxy wsrv.nl para redimensionar e converter para WebP
+  try {
+    const encodedUrl = encodeURIComponent(url);
+    // wsrv.nl is a free image proxy that resizes and converts to webp
+    // params: w=width, output=webp, q=compression quality, il=interlaced (progressive)
+    return `https://wsrv.nl/?url=${encodedUrl}&w=${width}&output=webp&q=75&il`;
+  } catch (e) {
+    return url;
+  }
+};
 const stripHtml = (html: string) => {
    if (!html) return "";
    const tmp = document.createElement("DIV");
@@ -293,7 +334,7 @@ const ImageModal = ({ items, initialIndex, isOpen, onClose, type }: { items: Mod
       >
         <div className="flex-1 bg-black flex items-center justify-center relative h-[40vh] md:h-full">
            <img 
-              src={currentItem.image} 
+              src={getOptimizedUrl(currentItem.image, 1200)} 
               alt={currentItem.title} 
               className="max-w-full max-h-full object-contain"
            />
@@ -344,9 +385,9 @@ const ImageModal = ({ items, initialIndex, isOpen, onClose, type }: { items: Mod
                      {currentItem.members.length > 0 ? (
                         <div className="grid grid-cols-3 gap-3">
                             {currentItem.members.map(member => (
-                              <div key={member.id} className="flex flex-col items-center bg-black p-2 rounded-lg border border-neutral-800 hover:border-primary transition group">
+                              <div key={member.id} className="flex flex-col items-center bg-black p-2 rounded-lg border border-primary/20 hover:border-primary transition group">
                                   <div className="w-12 h-12 rounded-full overflow-hidden mb-2 bg-neutral-800 border-2 border-neutral-700 group-hover:border-primary transition">
-                                      <img src={member.image_url || `https://ui-avatars.com/api/?name=${member.name}&background=eb5929&color=fff`} alt={member.name} className="w-full h-full object-cover" />
+                                      <img src={getOptimizedUrl(member.image_url, 200) || `https://ui-avatars.com/api/?name=${member.name}&background=eb5929&color=fff`} alt={member.name} className="w-full h-full object-cover" />
                                   </div>
                                   <div className="font-bold text-white text-[10px] text-center leading-tight w-full truncate" title={member.name}>{member.name}</div>
                                   <div className="text-[9px] text-primary font-bold uppercase">{member.number ? `#${member.number}` : ''} {member.position}</div>
@@ -495,7 +536,7 @@ const AboutPage = ({ teams, organization, teamMembers }: { teams: Team[], organi
                              {member.show_photo !== false && (
                                 <div className="w-40 h-40 rounded-full overflow-hidden border-4 border-neutral-800 group-hover:border-primary transition duration-300 mb-6 shadow-xl relative">
                                    <img 
-                                     src={member.image_url || `https://ui-avatars.com/api/?name=${member.name}&background=eb5929&color=fff`} 
+                                     src={getOptimizedUrl(member.image_url, 300) || `https://ui-avatars.com/api/?name=${member.name}&background=eb5929&color=fff`} 
                                      alt={member.name}
                                      className="w-full h-full object-cover"
                                    />
@@ -517,9 +558,11 @@ const AboutPage = ({ teams, organization, teamMembers }: { teams: Team[], organi
 };
 
 // --- CONTACTS PAGE COMPONENT ---
-const ContactsPage = ({ content }: { content: SiteContent | undefined }) => {
+const ContactsPage = ({ content, siteContent }: { content: SiteContent | undefined, siteContent: Record<string, SiteContent> }) => {
   const [formData, setFormData] = useState({ name: '', email: '', subject: '', message: '' });
   const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
+
+  const contactEmail = siteContent['contact_email']?.title || 'almavoleibolviseu@gmail.com';
 
   const validateEmail = (email: string) => {
     return String(email)
@@ -542,7 +585,7 @@ const ContactsPage = ({ content }: { content: SiteContent | undefined }) => {
     const formspreeId = import.meta.env.VITE_FORMSPREE_ID;
     const endpoint = formspreeId 
       ? `https://formspree.io/f/${formspreeId}` 
-      : `https://formspree.io/almavoleibolviseu@gmail.com`;
+      : `https://formspree.io/${contactEmail}`;
 
     try {
       const response = await fetch(endpoint, {
@@ -574,7 +617,7 @@ const ContactsPage = ({ content }: { content: SiteContent | undefined }) => {
       // Fallback para mailto se o serviço falhar ou não estiver configurado
       const { name, email, subject, message } = formData;
       const body = `Nome: ${name}\nEmail: ${email}\n\nMensagem:\n${message}`;
-      const mailtoUrl = `mailto:almavoleibolviseu@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      const mailtoUrl = `mailto:${contactEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
       
       // Aguarda um pouco para o utilizador ver a mensagem de erro antes de abrir o mailto
       setTimeout(() => {
@@ -601,7 +644,7 @@ const ContactsPage = ({ content }: { content: SiteContent | undefined }) => {
                     <Mail className="text-primary mt-1" size={32} />
                     <div>
                        <h4 className="font-bold text-inherit">Email</h4>
-                       <a href="mailto:almavoleibolviseu@gmail.com" className="opacity-70 hover:opacity-100 transition">almavoleibolviseu@gmail.com</a>
+                       <a href={`mailto:${contactEmail}`} className="opacity-70 hover:opacity-100 transition">{contactEmail}</a>
                     </div>
                  </div>
                  <div className="flex items-start gap-6">
@@ -696,7 +739,7 @@ const PartnersMarquee = ({ partners }: { partners: Partner[] }) => {
         <div className="flex gap-12 items-center pr-12">
            {baseList.map((p, i) => (
                <a key={`s1-${i}`} href={p.website_url} target="_blank" rel="noreferrer" className="block w-20 md:w-32 grayscale hover:grayscale-0 transition opacity-60 hover:opacity-100 flex-shrink-0">
-                 <img src={p.logo_url || `https://picsum.photos/seed/${p.id}/200/100`} alt={p.name} className="w-full object-contain" />
+                 <img src={getOptimizedUrl(p.logo_url, 200) || `https://picsum.photos/seed/${p.id}/200/100`} alt={p.name} className="w-full object-contain" />
                </a>
            ))}
         </div>
@@ -704,7 +747,7 @@ const PartnersMarquee = ({ partners }: { partners: Partner[] }) => {
         <div className="flex gap-12 items-center pr-12">
            {baseList.map((p, i) => (
                <a key={`s2-${i}`} href={p.website_url} target="_blank" rel="noreferrer" className="block w-20 md:w-32 grayscale hover:grayscale-0 transition opacity-60 hover:opacity-100 flex-shrink-0">
-                 <img src={p.logo_url || `https://picsum.photos/seed/${p.id}/200/100`} alt={p.name} className="w-full object-contain" />
+                 <img src={getOptimizedUrl(p.logo_url, 200) || `https://picsum.photos/seed/${p.id}/200/100`} alt={p.name} className="w-full object-contain" />
                </a>
            ))}
         </div>
@@ -750,6 +793,21 @@ const LandingPage = ({
   const [modalStartIndex, setModalStartIndex] = useState(0);
   const [modalType, setModalType] = useState<'news' | 'product' | 'team' | 'gallery' | null>(null);
 
+  const [newsSearch, setNewsSearch] = useState('');
+  const [galleryCategory, setGalleryCategory] = useState('Todos');
+
+  const filteredNews = news.filter(item => {
+    const searchLower = newsSearch.toLowerCase();
+    return item.title.toLowerCase().includes(searchLower) || 
+           stripHtml(item.content).toLowerCase().includes(searchLower);
+  });
+
+  const galleryCategories = ['Todos', ...Array.from(new Set(gallery.map(g => g.category).filter(Boolean) as string[]))];
+
+  const filteredGallery = galleryCategory === 'Todos' 
+    ? gallery 
+    : gallery.filter(g => g.category === galleryCategory);
+
   const openModal = (items: any[], index: number, type: 'news' | 'product' | 'team' | 'gallery') => {
     let formattedItems: ModalItem[] = [];
 
@@ -786,7 +844,8 @@ const LandingPage = ({
       formattedItems = items.map((i: GalleryItem) => ({
         id: i.id,
         image: i.image_url || `https://picsum.photos/seed/${i.id}/800/600`,
-        title: i.title || 'Sem título'
+        title: i.title || 'Sem título',
+        subtitle: i.category
       }));
     }
 
@@ -818,28 +877,50 @@ const LandingPage = ({
       {/* HERO SECTION */}
       <section id="home" className="relative h-screen min-h-[600px] flex items-center justify-center text-center overflow-hidden">
         <div className="absolute inset-0 bg-black/60 z-10"></div>
-        <img src={currentHero.image_url} alt="Voleibol" className="absolute inset-0 w-full h-full object-cover opacity-50" />
-        <div className="relative z-20 max-w-5xl px-4 animate-fade-in-up">
-          <h1 className="text-6xl md:text-9xl font-black italic tracking-tighter mb-2 leading-none uppercase">
+        <motion.img 
+          initial={{ scale: 1.1, opacity: 0 }}
+          animate={{ scale: 1, opacity: 0.5 }}
+          transition={{ duration: 2, ease: "easeOut" }}
+          src={getOptimizedUrl(currentHero.image_url, 1600)} 
+          alt="Voleibol" 
+          className="absolute inset-0 w-full h-full object-cover" 
+        />
+        <div className="relative z-20 max-w-5xl px-4">
+          <motion.h1 
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1, delay: 0.2 }}
+            className="text-6xl md:text-9xl font-black italic tracking-tighter mb-2 leading-none uppercase"
+          >
             {renderHeroTitle()}
-          </h1>
-          <div className="text-xl md:text-3xl text-neutral-300 font-light mb-8 tracking-widest uppercase">
+          </motion.h1>
+          <motion.div 
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1, delay: 0.5 }}
+            className="text-xl md:text-3xl text-neutral-300 font-light mb-8 tracking-widest uppercase"
+          >
              <div dangerouslySetInnerHTML={{ __html: currentHero.subtitle }}></div>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          </motion.div>
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.8, delay: 0.8 }}
+            className="flex flex-col sm:flex-row gap-4 justify-center"
+          >
             <button 
               onClick={() => document.getElementById('calendar')?.scrollIntoView({behavior: 'smooth'})}
               className="bg-transparent text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-white hover:text-black transition transform hover:scale-105 border-2 border-white"
             >
               Ver Jogos
             </button>
-          </div>
+          </motion.div>
         </div>
       </section>
 
       {/* NEXT MATCH BANNER */}
       {nextMatch && (
-        <div className="relative z-30 -mt-16 mx-4 md:mx-auto max-w-5xl">
+        <Reveal className="relative z-30 -mt-16 mx-4 md:mx-auto max-w-5xl">
           <div className="bg-gradient-to-r from-neutral-900 to-black border-t-4 border-primary rounded-lg shadow-2xl p-6 md:p-8 flex flex-col md:flex-row items-center justify-between text-center gap-6">
             <div className="text-left">
               <div className="text-primary font-bold uppercase tracking-widest text-xs">Próximo Jogo</div>
@@ -861,188 +942,253 @@ const LandingPage = ({
               </div>
             </div>
           </div>
-        </div>
+        </Reveal>
       )}
 
       {/* NEWS SECTION */}
-      <DynamicSection id="news" content={siteContent['news']} defaultClass="bg-neutral-900 text-white" defaultTitle="Últimas Notícias">
-          <SectionCarousel>
-            {news.map((item, index) => (
-              <div 
-                key={item.id} 
-                className="bg-neutral-800 rounded-xl overflow-hidden group hover:ring-2 hover:ring-primary transition-all duration-300 cursor-pointer snap-center min-w-[300px] md:min-w-[400px]"
-                onClick={() => openModal(news, index, 'news')}
-              >
-                <div className="h-56 overflow-hidden">
-                  <img src={item.image_url || `https://picsum.photos/seed/${item.id}/400/250`} alt={item.title} className="w-full h-full object-cover transition duration-500 group-hover:scale-110 opacity-80 group-hover:opacity-100" />
-                </div>
-                <div className="p-6 relative">
-                  <div className="absolute -top-4 right-6 bg-primary text-white text-xs font-bold px-3 py-1 rounded shadow-lg">
-                    {new Date(item.created_at).toLocaleDateString('pt-PT')}
-                  </div>
-                  <h3 className="text-xl font-bold mb-3 text-white leading-tight group-hover:text-primary transition line-clamp-2">{item.title}</h3>
-                  <p className="text-neutral-400 text-sm line-clamp-3">
-                    {stripHtml(item.content)}
-                  </p>
-                </div>
+      <Reveal>
+        <DynamicSection id="news" content={siteContent['news']} defaultClass="bg-neutral-900 text-white" defaultTitle="Últimas Notícias">
+            <div className="max-w-md mx-auto mb-10 relative">
+              <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-neutral-500">
+                <Search size={18} />
               </div>
-            ))}
-            {news.length === 0 && <p className="text-neutral-500 text-center w-full">A aguardar novidades...</p>}
-          </SectionCarousel>
-      </DynamicSection>
+              <input 
+                type="text" 
+                placeholder="Pesquisar notícias..." 
+                value={newsSearch}
+                onChange={(e) => setNewsSearch(e.target.value)}
+                className="w-full bg-neutral-800 border border-neutral-700 rounded-full py-3 pl-10 pr-4 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-sm"
+              />
+              {newsSearch && (
+                <button 
+                  onClick={() => setNewsSearch('')}
+                  className="absolute inset-y-0 right-3 flex items-center text-neutral-500 hover:text-white"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+
+            <SectionCarousel>
+              {filteredNews.map((item, index) => (
+                <div 
+                  key={item.id} 
+                  className="bg-neutral-800 rounded-xl overflow-hidden group hover:ring-2 hover:ring-primary transition-all duration-300 cursor-pointer snap-center min-w-[300px] md:min-w-[400px]"
+                  onClick={() => openModal(filteredNews, index, 'news')}
+                >
+                  <div className="h-56 overflow-hidden">
+                    <img src={getOptimizedUrl(item.image_url || `https://picsum.photos/seed/${item.id}/400/250`, 600)} alt={item.title} className="w-full h-full object-cover transition duration-500 group-hover:scale-110 opacity-80 group-hover:opacity-100" />
+                  </div>
+                  <div className="p-6 relative">
+                    <div className="absolute -top-4 right-6 bg-primary text-white text-xs font-bold px-3 py-1 rounded shadow-lg">
+                      {new Date(item.created_at).toLocaleDateString('pt-PT')}
+                    </div>
+                    <h3 className="text-xl font-bold mb-3 text-white leading-tight group-hover:text-primary transition line-clamp-2">{item.title}</h3>
+                    <p className="text-neutral-400 text-sm line-clamp-3">
+                      {stripHtml(item.content)}
+                    </p>
+                  </div>
+                </div>
+              ))}
+              {news.length > 0 && filteredNews.length === 0 && (
+                <div className="w-full py-12 text-center text-neutral-500">
+                  <Search size={48} className="mx-auto mb-4 opacity-20" />
+                  <p>Não foram encontradas notícias para "{newsSearch}".</p>
+                </div>
+              )}
+              {news.length === 0 && <p className="text-neutral-500 text-center w-full">A aguardar novidades...</p>}
+            </SectionCarousel>
+        </DynamicSection>
+      </Reveal>
 
       {/* CALENDAR SECTION */}
-      <DynamicSection id="calendar" content={siteContent['calendar']} defaultClass="bg-black text-white" defaultTitle="Calendário & Resultados" defaultSubtitle="Acompanha a nossa jornada jornada a jornada.">
-          {!siteContent['calendar']?.image_url && (
-             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20 pointer-events-none"></div>
-          )}
-          
-          <div className="relative z-10 space-y-16">
+      <Reveal>
+        <DynamicSection id="calendar" content={siteContent['calendar']} defaultClass="bg-black text-white" defaultTitle="Calendário & Resultados" defaultSubtitle="Acompanha a nossa jornada jornada a jornada.">
+            {!siteContent['calendar']?.image_url && (
+               <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20 pointer-events-none"></div>
+            )}
             
-            {/* UPCOMING MATCHES CAROUSEL */}
-            <div>
-              <h3 className="text-2xl font-bold mb-6 flex items-center gap-3 text-white pl-2">
-                <span className="w-8 h-8 bg-primary rounded flex items-center justify-center text-black"><Calendar size={18}/></span> 
-                Próximos Jogos
-              </h3>
-              <SectionCarousel>
-                {upcoming.map(m => (
-                  <div key={m.id} className="snap-center min-w-[320px] bg-neutral-900 border-l-4 border-primary p-6 rounded-r-xl hover:bg-neutral-800 transition shadow-lg group border-y border-r border-neutral-800 hover:border-neutral-700">
-                    <div className="flex justify-between items-start mb-4">
-                      <span className="text-xs font-bold text-primary uppercase tracking-widest bg-primary/10 px-2 py-1 rounded">{m.category}</span>
-                      <div className="text-right">
-                         <span className="text-white font-bold block">{new Date(m.date).toLocaleDateString('pt-PT')}</span>
-                         <span className="text-neutral-500 text-xs">{new Date(m.date).toLocaleTimeString('pt-PT', {hour:'2-digit', minute:'2-digit'})}</span>
+            <div className="relative z-10 space-y-16">
+              
+              {/* UPCOMING MATCHES CAROUSEL */}
+              <div>
+                <h3 className="text-2xl font-bold mb-6 flex items-center gap-3 text-white pl-2">
+                  <span className="w-8 h-8 bg-primary rounded flex items-center justify-center text-black"><Calendar size={18}/></span> 
+                  Próximos Jogos
+                </h3>
+                <SectionCarousel>
+                  {upcoming.map(m => (
+                    <div key={m.id} className="snap-center min-w-[320px] bg-neutral-900 border-l-4 border-primary p-6 rounded-r-xl hover:bg-neutral-800 transition shadow-lg group border-y border-r border-neutral-800 hover:border-neutral-700">
+                      <div className="flex justify-between items-start mb-4">
+                        <span className="text-xs font-bold text-primary uppercase tracking-widest bg-primary/10 px-2 py-1 rounded">{m.category}</span>
+                        <div className="text-right">
+                           <span className="text-white font-bold block">{new Date(m.date).toLocaleDateString('pt-PT')}</span>
+                           <span className="text-neutral-500 text-xs">{new Date(m.date).toLocaleTimeString('pt-PT', {hour:'2-digit', minute:'2-digit'})}</span>
+                        </div>
+                      </div>
+                      <div className="text-xl font-black italic text-white mb-4 flex flex-col gap-1">
+                          <span>{m.home_team}</span>
+                          <span className="text-neutral-600 text-sm not-italic font-normal">VS</span>
+                          <span>{m.guest_team}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-neutral-400 border-t border-neutral-800 pt-4">
+                        <MapPin size={16} className="text-primary"/> 
+                        <span className="truncate">{m.location}</span>
                       </div>
                     </div>
-                    <div className="text-xl font-black italic text-white mb-4 flex flex-col gap-1">
-                        <span>{m.home_team}</span>
-                        <span className="text-neutral-600 text-sm not-italic font-normal">VS</span>
-                        <span>{m.guest_team}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-neutral-400 border-t border-neutral-800 pt-4">
-                      <MapPin size={16} className="text-primary"/> 
-                      <span className="truncate">{m.location}</span>
-                    </div>
-                  </div>
-                ))}
-                {upcoming.length === 0 && <p className="text-neutral-600 italic px-4 w-full text-center">Sem jogos agendados.</p>}
-              </SectionCarousel>
-            </div>
+                  ))}
+                  {upcoming.length === 0 && <p className="text-neutral-600 italic px-4 w-full text-center">Sem jogos agendados.</p>}
+                </SectionCarousel>
+              </div>
 
-            {/* RESULTS CAROUSEL */}
-            <div>
-              <h3 className="text-2xl font-bold mb-6 flex items-center gap-3 text-white pl-2">
-                <span className="w-8 h-8 bg-white rounded flex items-center justify-center text-black"><Trophy size={18}/></span> 
-                Resultados
-              </h3>
-              <SectionCarousel>
-                {past.map(m => (
-                  <div key={m.id} className="snap-center min-w-[320px] bg-neutral-900 p-6 rounded-xl border border-neutral-800 hover:border-neutral-600 transition shadow-lg">
-                     <div className="flex items-center justify-between mb-4 border-b border-neutral-800 pb-4">
-                        <span className="text-xs font-bold text-neutral-500 uppercase tracking-widest">{m.category}</span>
-                        <div className="text-xs text-neutral-400 flex flex-col items-end">
-                            <span className="font-bold text-white">{new Date(m.date).getDate()} {new Date(m.date).toLocaleString('default', { month: 'short' })}</span>
-                        </div>
-                     </div>
-                     <div className="space-y-3">
-                        <div className="flex justify-between items-center">
-                            <span className={`font-bold text-lg ${m.score_home! > m.score_guest! ? 'text-primary' : 'text-neutral-300'}`}>{m.home_team}</span>
-                            <span className="font-mono text-xl font-bold bg-black px-3 py-1 rounded text-white">{m.score_home}</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                            <span className={`font-bold text-lg ${m.score_guest! > m.score_home! ? 'text-primary' : 'text-neutral-300'}`}>{m.guest_team}</span>
-                            <span className="font-mono text-xl font-bold bg-black px-3 py-1 rounded text-white">{m.score_guest}</span>
-                        </div>
-                     </div>
-                  </div>
-                ))}
-                {past.length === 0 && <p className="text-neutral-600 italic px-4 w-full text-center">Sem resultados.</p>}
-              </SectionCarousel>
-            </div>
+              {/* RESULTS CAROUSEL */}
+              <div>
+                <h3 className="text-2xl font-bold mb-6 flex items-center gap-3 text-white pl-2">
+                  <span className="w-8 h-8 bg-white rounded flex items-center justify-center text-black"><Trophy size={18}/></span> 
+                  Resultados
+                </h3>
+                <SectionCarousel>
+                  {past.map(m => (
+                    <div key={m.id} className="snap-center min-w-[320px] bg-neutral-900 p-6 rounded-xl border border-neutral-800 hover:border-neutral-600 transition shadow-lg">
+                       <div className="flex items-center justify-between mb-4 border-b border-neutral-800 pb-4">
+                          <span className="text-xs font-bold text-neutral-500 uppercase tracking-widest">{m.category}</span>
+                          <div className="text-xs text-neutral-400 flex flex-col items-end">
+                              <span className="font-bold text-white">{new Date(m.date).getDate()} {new Date(m.date).toLocaleString('default', { month: 'short' })}</span>
+                          </div>
+                       </div>
+                       <div className="space-y-3">
+                          <div className="flex justify-between items-center">
+                              <span className={`font-bold text-lg ${m.score_home! > m.score_guest! ? 'text-primary' : 'text-neutral-300'}`}>{m.home_team}</span>
+                              <span className="font-mono text-xl font-bold bg-black px-3 py-1 rounded text-white">{m.score_home}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                              <span className={`font-bold text-lg ${m.score_guest! > m.score_home! ? 'text-primary' : 'text-neutral-300'}`}>{m.guest_team}</span>
+                              <span className="font-mono text-xl font-bold bg-black px-3 py-1 rounded text-white">{m.score_guest}</span>
+                          </div>
+                       </div>
+                    </div>
+                  ))}
+                  {past.length === 0 && <p className="text-neutral-600 italic px-4 w-full text-center">Sem resultados.</p>}
+                </SectionCarousel>
+              </div>
 
-          </div>
-      </DynamicSection>
+            </div>
+        </DynamicSection>
+      </Reveal>
 
       {/* TEAMS SECTION */}
-      <DynamicSection id="teams" content={siteContent['teams']} defaultClass="bg-neutral-900 text-white" defaultTitle="As Nossas Equipas">
-          <SectionCarousel>
-            {teams.map((t, idx) => (
-              <div 
-                key={t.id} 
-                className="flex-shrink-0 snap-center rounded-2xl overflow-hidden bg-neutral-800 shadow-2xl cursor-pointer hover:ring-2 hover:ring-primary transition-all duration-300 w-[90vw] md:w-[600px] flex flex-col"
-                onClick={() => openModal(teams, idx, 'team')}
-              >
-                 <div className="relative h-[300px]">
-                   <img src={t.image_url || `https://picsum.photos/seed/${t.id}/800/600`} className="absolute inset-0 w-full h-full object-cover" />
-                   <div className="absolute inset-0 bg-gradient-to-t from-neutral-800 opacity-80"></div>
-                 </div>
-                 <div className="p-8 flex flex-col justify-center flex-grow">
-                    {/* Category Removed here as requested */}
-                    <h3 className="text-3xl font-black italic text-white mb-4">{t.name}</h3>
-                    <div className="text-neutral-400 leading-relaxed text-sm line-clamp-3" dangerouslySetInnerHTML={{__html: t.description}}></div>
-                    <div className="mt-4 text-primary text-sm font-bold flex items-center gap-2">
-                       Ver mais <ChevronRight size={16} />
-                    </div>
-                 </div>
-              </div>
-            ))}
-            {teams.length === 0 && <p className="text-neutral-500 text-center w-full">Equipas a carregar...</p>}
-          </SectionCarousel>
-      </DynamicSection>
+      <Reveal>
+        <DynamicSection id="teams" content={siteContent['teams']} defaultClass="bg-neutral-900 text-white" defaultTitle="As Nossas Equipas">
+            <SectionCarousel>
+              {teams.map((t, idx) => (
+                <div 
+                  key={t.id} 
+                  className="flex-shrink-0 snap-center rounded-2xl overflow-hidden bg-neutral-800 shadow-2xl cursor-pointer hover:ring-2 hover:ring-primary transition-all duration-300 w-[90vw] md:w-[600px] flex flex-col"
+                  onClick={() => openModal(teams, idx, 'team')}
+                >
+                   <div className="relative h-[300px]">
+                     <img src={getOptimizedUrl(t.image_url, 800) || `https://picsum.photos/seed/${t.id}/800/600`} className="absolute inset-0 w-full h-full object-cover" />
+                     <div className="absolute inset-0 bg-gradient-to-t from-neutral-800 opacity-80"></div>
+                   </div>
+                   <div className="p-8 flex flex-col justify-center flex-grow">
+                      <h3 className="text-3xl font-black italic text-white mb-4">{t.name}</h3>
+                      <div className="text-neutral-400 leading-relaxed text-sm line-clamp-3" dangerouslySetInnerHTML={{__html: t.description}}></div>
+                      <div className="mt-4 text-primary text-sm font-bold flex items-center gap-2">
+                         Ver mais <ChevronRight size={16} />
+                      </div>
+                   </div>
+                </div>
+              ))}
+              {teams.length === 0 && <p className="text-neutral-500 text-center w-full">Equipas a carregar...</p>}
+            </SectionCarousel>
+        </DynamicSection>
+      </Reveal>
       
       {/* GALLERY SECTION */}
       <section id="photos" className="py-4 bg-black">
-        <DynamicSection id="photos-inner" content={siteContent['photos']} defaultClass="bg-black text-white" defaultTitle="Galeria">
-            <SectionCarousel>
-              {gallery.map((g, index) => (
-                <div 
-                  key={g.id} 
-                  className="relative group overflow-hidden aspect-square cursor-pointer snap-center min-w-[200px] md:min-w-[300px] rounded-lg"
-                  onClick={() => openModal(gallery, index, 'gallery')}
-                >
-                  <img src={g.image_url || `https://picsum.photos/seed/${g.id}/500/500`} className="w-full h-full object-cover transition duration-700 group-hover:scale-110 opacity-70 group-hover:opacity-100" />
+        <Reveal>
+          <DynamicSection id="photos-inner" content={siteContent['photos']} defaultClass="bg-black text-white" defaultTitle="Galeria">
+              {galleryCategories.length > 1 && (
+                <div className="flex flex-wrap justify-center gap-2 mb-8">
+                  {galleryCategories.map(cat => (
+                    <button
+                      key={cat}
+                      onClick={() => setGalleryCategory(cat)}
+                      className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all border ${
+                        galleryCategory === cat 
+                          ? 'bg-primary border-primary text-white' 
+                          : 'bg-neutral-900 border-neutral-700 text-neutral-400 hover:border-neutral-500'
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
                 </div>
-              ))}
-              {gallery.length === 0 && <p className="text-neutral-500 text-center w-full">Galeria vazia.</p>}
-            </SectionCarousel>
-        </DynamicSection>
+              )}
+              <SectionCarousel>
+                {filteredGallery.map((g, index) => (
+                  <div 
+                    key={g.id} 
+                    className="relative group overflow-hidden aspect-square cursor-pointer snap-center min-w-[200px] md:min-w-[300px] rounded-lg"
+                    onClick={() => openModal(filteredGallery, index, 'gallery')}
+                  >
+                    <img src={getOptimizedUrl(g.image_url, 400) || `https://picsum.photos/seed/${g.id}/500/500`} className="w-full h-full object-cover transition duration-700 group-hover:scale-110 opacity-70 group-hover:opacity-100" />
+                    {g.category && (
+                      <div className="absolute top-2 left-2 bg-black/60 text-[10px] text-white px-2 py-0.5 rounded backdrop-blur-sm uppercase tracking-tighter font-bold border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {g.category}
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {filteredGallery.length === 0 && (
+                  <div className="w-full py-12 text-center text-neutral-500">
+                    <p>Sem fotos nesta categoria.</p>
+                  </div>
+                )}
+                {gallery.length === 0 && <p className="text-neutral-500 text-center w-full">Galeria vazia.</p>}
+              </SectionCarousel>
+          </DynamicSection>
+        </Reveal>
       </section>
 
       {/* PARTNERS SECTION */}
-      <DynamicSection id="partners" content={siteContent['partners']} defaultClass="bg-neutral-100 text-black" defaultTitle="Os Nossos Parceiros" padding="py-6">
-          <PartnersMarquee partners={partners} />
-      </DynamicSection>
+      <Reveal>
+        <DynamicSection id="partners" content={siteContent['partners']} defaultClass="bg-neutral-100 text-black" defaultTitle="Os Nossos Parceiros" padding="py-6">
+            <PartnersMarquee partners={partners} />
+        </DynamicSection>
+      </Reveal>
 
       {/* SHOP SECTION (SMALLER CARDS) */}
-      <DynamicSection id="shop" content={siteContent['shop']} defaultClass="bg-black text-white" defaultTitle="Loja Oficial">
-          <SectionCarousel>
-            {products.map((p, index) => (
-              <div 
-                key={p.id} 
-                className="bg-neutral-900 rounded-xl overflow-hidden group border border-neutral-800 hover:border-primary transition duration-300 cursor-pointer snap-center min-w-[220px] max-w-[220px]"
-                onClick={() => openModal(products, index, 'product')}
-              >
-                <div className="h-40 overflow-hidden relative p-3 bg-neutral-800">
-                  <img src={p.image_url || `https://picsum.photos/seed/${p.id}/400/400`} alt={p.name} className="w-full h-full object-cover rounded-lg transition transform group-hover:scale-105" />
-                  {!p.hide_price && (
-                    <div className="absolute top-3 right-3 bg-primary text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg">{p.price.toFixed(2)} €</div>
-                  )}
+      <Reveal>
+        <DynamicSection id="shop" content={siteContent['shop']} defaultClass="bg-black text-white" defaultTitle="Loja Oficial">
+            <SectionCarousel>
+              {products.map((p, index) => (
+                <div 
+                  key={p.id} 
+                  className="bg-neutral-900 rounded-xl overflow-hidden group border border-neutral-800 hover:border-primary transition duration-300 cursor-pointer snap-center min-w-[220px] max-w-[220px]"
+                  onClick={() => openModal(products, index, 'product')}
+                >
+                  <div className="h-40 overflow-hidden relative p-3 bg-neutral-800">
+                    <img src={getOptimizedUrl(p.image_url, 400) || `https://picsum.photos/seed/${p.id}/400/400`} alt={p.name} className="w-full h-full object-cover rounded-lg transition transform group-hover:scale-105" />
+                    {!p.hide_price && (
+                      <div className="absolute top-3 right-3 bg-primary text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg">{p.price.toFixed(2)} €</div>
+                    )}
+                  </div>
+                  <div className="p-3">
+                    <h3 className="font-bold text-sm text-white mb-1 truncate">{p.name}</h3>
+                    <div className="text-neutral-500 text-[10px] mb-3 line-clamp-2" dangerouslySetInnerHTML={{__html: p.description}}></div>
+                    {!p.hide_order_button && (
+                      <button className="w-full bg-white text-black py-2 rounded font-bold text-xs hover:bg-primary hover:text-white transition flex items-center justify-center gap-2">
+                        <ShoppingBag size={12} /> Encomendar
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div className="p-3">
-                  <h3 className="font-bold text-sm text-white mb-1 truncate">{p.name}</h3>
-                  <div className="text-neutral-500 text-[10px] mb-3 line-clamp-2" dangerouslySetInnerHTML={{__html: p.description}}></div>
-                  {!p.hide_order_button && (
-                    <button className="w-full bg-white text-black py-2 rounded font-bold text-xs hover:bg-primary hover:text-white transition flex items-center justify-center gap-2">
-                      <ShoppingBag size={12} /> Encomendar
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
-            {products.length === 0 && <p className="text-neutral-500 text-center w-full">Loja brevemente...</p>}
-          </SectionCarousel>
-      </DynamicSection>
+              ))}
+              {products.length === 0 && <p className="text-neutral-500 text-center w-full">Loja brevemente...</p>}
+            </SectionCarousel>
+        </DynamicSection>
+      </Reveal>
 
       <ImageModal isOpen={modalOpen} onClose={() => setModalOpen(false)} items={modalItems} initialIndex={modalStartIndex} type={modalType} />
     </div>
@@ -1104,10 +1250,21 @@ const AdminList = ({ title, data, table, fields, onCreate, onUpdate, onDelete }:
         for (const key of Object.keys(files)) {
             const file = files[key];
             if (file) {
-              const compressedFile = await compressImage(file);
+              // Adjust resolution based on table
+              let targetSize = 1000;
+              if (table === 'news') targetSize = 800;
+              if (table === 'gallery') targetSize = 1200;
+              if (table === 'partners') targetSize = 400;
+              if (table === 'team_members') targetSize = 400;
+              if (table === 'organization') targetSize = 500;
+              
+              const compressedFile = await compressImage(file, targetSize, targetSize);
               const fileExt = compressedFile.name.split('.').pop() || 'webp';
               const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-              const { error: uploadError } = await supabase.storage.from('images').upload(fileName, compressedFile);
+              const { error: uploadError } = await supabase.storage.from('images').upload(fileName, compressedFile, {
+                cacheControl: '31536000', // 1 year cache
+                upsert: false
+              });
               if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
               const { data: { publicUrl } } = supabase.storage.from('images').getPublicUrl(fileName);
               finalData[key] = publicUrl;
@@ -1264,6 +1421,106 @@ const MenuEditor = ({ siteContent, onUpdate }: { siteContent: Record<string, Sit
            );
          })}
        </div>
+    </div>
+  );
+};
+
+const SocialLinksEditor = ({ siteContent, onUpdate }: { siteContent: Record<string, SiteContent>, onUpdate: Function }) => {
+  const socialItems = [
+    { id: 'social_facebook', label: 'Facebook', icon: <Facebook size={18} /> },
+    { id: 'social_instagram', label: 'Instagram', icon: <Instagram size={18} /> },
+    { id: 'social_youtube', label: 'YouTube', icon: <Youtube size={18} /> },
+  ];
+
+  const contactItems = [
+    { id: 'contact_email', label: 'Email de Contacto', icon: <Mail size={18} />, placeholder: 'ex: almavoleibolviseu@gmail.com' },
+  ];
+
+  const [saving, setSaving] = useState<string | null>(null);
+
+  const handleSave = async (id: string, url: string) => {
+    setSaving(id);
+    await onUpdate(id, url, '', null);
+    setSaving(null);
+  };
+
+  return (
+    <div className="space-y-8">
+      <div className="bg-white p-6 rounded shadow text-black max-w-2xl">
+         <h3 className="text-xl font-bold mb-6 border-b pb-2">Configurar Redes Sociais</h3>
+         <p className="text-sm text-neutral-500 mb-6">Insira os links completos das redes sociais do clube. Estes links aparecerão no rodapé do site.</p>
+         
+         <div className="space-y-6">
+           {socialItems.map(item => {
+             const currentVal = siteContent[item.id]?.title || '';
+             return (
+               <div key={item.id} className="space-y-2">
+                 <label className="flex items-center gap-2 text-sm font-bold text-neutral-600">
+                   {item.icon} {item.label}
+                 </label>
+                 <div className="flex gap-2">
+                   <input 
+                     type="url" 
+                     defaultValue={currentVal}
+                     id={`input-${item.id}`}
+                     placeholder={`https://${item.label.toLowerCase()}.com/...`}
+                     className="flex-1 border p-3 rounded-lg focus:border-primary outline-none text-sm"
+                   />
+                   <button 
+                     onClick={() => {
+                       const val = (document.getElementById(`input-${item.id}`) as HTMLInputElement).value;
+                       handleSave(item.id, val);
+                     }}
+                     disabled={saving === item.id}
+                     className="bg-primary text-white px-5 py-2 rounded-lg font-bold hover:bg-primary/90 disabled:opacity-50 flex items-center gap-2 transition-all shadow-lg shadow-primary/10"
+                   >
+                     {saving === item.id ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                     Guardar
+                   </button>
+                 </div>
+               </div>
+             );
+           })}
+         </div>
+      </div>
+
+      <div className="bg-white p-6 rounded shadow text-black max-w-2xl">
+         <h3 className="text-xl font-bold mb-6 border-b pb-2">Configurações de Contacto</h3>
+         <p className="text-sm text-neutral-500 mb-6">Defina o email para onde devem ser enviadas as mensagens do formulário de contacto.</p>
+         
+         <div className="space-y-6">
+           {contactItems.map(item => {
+             const currentVal = siteContent[item.id]?.title || '';
+             return (
+               <div key={item.id} className="space-y-2">
+                 <label className="flex items-center gap-2 text-sm font-bold text-neutral-600">
+                   {item.icon} {item.label}
+                 </label>
+                 <div className="flex gap-2">
+                   <input 
+                     type="email" 
+                     defaultValue={currentVal}
+                     id={`input-${item.id}`}
+                     placeholder={item.placeholder}
+                     className="flex-1 border p-3 rounded-lg focus:border-primary outline-none text-sm"
+                   />
+                   <button 
+                     onClick={() => {
+                       const val = (document.getElementById(`input-${item.id}`) as HTMLInputElement).value;
+                       handleSave(item.id, val);
+                     }}
+                     disabled={saving === item.id}
+                     className="bg-primary text-white px-5 py-2 rounded-lg font-bold hover:bg-primary/90 disabled:opacity-50 flex items-center gap-2 transition-all shadow-lg shadow-primary/10"
+                   >
+                     {saving === item.id ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                     Guardar
+                   </button>
+                 </div>
+               </div>
+             );
+           })}
+         </div>
+      </div>
     </div>
   );
 };
@@ -1621,7 +1878,7 @@ create table if not exists products (id uuid default gen_random_uuid() primary k
 create table if not exists partners (id uuid default gen_random_uuid() primary key, name text, website_url text, logo_url text);
 create table if not exists teams (id uuid default gen_random_uuid() primary key, name text, category text, description text, image_url text, coaches text);
 create table if not exists team_members (id uuid default gen_random_uuid() primary key, team_id uuid references teams(id), name text, number text, position text, image_url text);
-create table if not exists gallery (id uuid default gen_random_uuid() primary key, title text, image_url text);
+create table if not exists gallery (id uuid default gen_random_uuid() primary key, title text, image_url text, category text);
 create table if not exists organization (id uuid default gen_random_uuid() primary key, created_at timestamptz default now(), name text, role text, image_url text, display_order int default 0);
 create table if not exists site_content (id uuid default gen_random_uuid() primary key, section text unique not null, title text, subtitle text, image_url text);
 
@@ -1629,6 +1886,7 @@ create table if not exists site_content (id uuid default gen_random_uuid() prima
 alter table teams add column if not exists coaches text;
 alter table products add column if not exists hide_price boolean default false;
 alter table products add column if not exists hide_order_button boolean default false;
+alter table gallery add column if not exists category text;
 alter table organization add column if not exists show_photo boolean default true;
 alter table organization add column if not exists department text default 'Direção';
 alter table organization add column if not exists display_order int default 0;
@@ -1726,6 +1984,15 @@ export default function App() {
 
   // Admin Tab State
   const [adminTab, setAdminTab] = useState('conteudo');
+  const [showBackToTop, setShowBackToTop] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowBackToTop(window.scrollY > 400);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -1875,10 +2142,19 @@ export default function App() {
       let imageUrl = siteContent[section]?.image_url;
 
       if (imageFile) {
-         const compressedFile = await compressImage(imageFile);
+         let targetWidth = 1600;
+         let targetHeight = 1600;
+         
+         if (section === 'branding') { targetWidth = 400; targetHeight = 400; }
+         if (section === 'news' || section === 'shop' || section === 'teams') { targetWidth = 1200; targetHeight = 1200; }
+
+         const compressedFile = await compressImage(imageFile, targetWidth, targetHeight);
          const fileExt = compressedFile.name.split('.').pop() || 'webp';
          const fileName = `${section}_${Date.now()}.${fileExt}`;
-         const { error: uploadError } = await supabase.storage.from('images').upload(fileName, compressedFile);
+         const { error: uploadError } = await supabase.storage.from('images').upload(fileName, compressedFile, {
+           cacheControl: '31536000', // 1 year cache
+           upsert: false
+         });
          if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
          const { data: { publicUrl } } = supabase.storage.from('images').getPublicUrl(fileName);
          imageUrl = publicUrl;
@@ -1915,9 +2191,9 @@ export default function App() {
               <button onClick={() => setAdminTab('conteudo')} className={`w-full text-left p-2 rounded capitalize font-montserrat font-extrabold ${adminTab === 'conteudo' ? 'bg-primary text-white' : 'hover:bg-neutral-100 text-neutral-700'}`}>
                   <span className="flex items-center gap-2"><Layout size={16}/> Conteúdos</span>
               </button>
-              {['menu', 'noticias', 'jogos', 'loja', 'parceiros', 'equipas', 'atletas', 'galeria', 'órgãos sociais', 'imagens', 'definições'].map(tab => (
+              {['menu', 'redes sociais', 'noticias', 'jogos', 'loja', 'parceiros', 'equipas', 'atletas', 'galeria', 'órgãos sociais', 'imagens', 'definições'].map(tab => (
                 <button key={tab} onClick={() => setAdminTab(tab)} className={`w-full text-left p-2 rounded capitalize font-montserrat font-extrabold ${adminTab === tab ? 'bg-primary text-white' : 'hover:bg-neutral-100 text-neutral-700'}`}>
-                  {tab === 'definições' ? <span className="flex items-center gap-2"><Settings size={16}/> Definições</span> : tab === 'imagens' ? <span className="flex items-center gap-2"><ImageIcon size={16}/> Imagens</span> : tab === 'menu' ? <span className="flex items-center gap-2"><List size={16}/> Menu</span> : tab}
+                  {tab === 'definições' ? <span className="flex items-center gap-2"><Settings size={16}/> Definições</span> : tab === 'imagens' ? <span className="flex items-center gap-2"><ImageIcon size={16}/> Imagens</span> : tab === 'menu' ? <span className="flex items-center gap-2"><List size={16}/> Menu</span> : tab === 'redes sociais' ? <span className="flex items-center gap-2"><Share2 size={16}/> Redes Sociais</span> : tab}
                 </button>
               ))}
             </div>
@@ -1929,13 +2205,14 @@ export default function App() {
               <h2 className="text-3xl font-bold mb-6 capitalize text-secondary">{adminTab}</h2>
               {adminTab === 'conteudo' && <SiteContentEditor siteContent={siteContent} onUpdate={updateSectionContent} />}
               {adminTab === 'menu' && <MenuEditor siteContent={siteContent} onUpdate={updateSectionContent} />}
+              {adminTab === 'redes sociais' && <SocialLinksEditor siteContent={siteContent} onUpdate={updateSectionContent} />}
               {adminTab === 'noticias' && <AdminList title="Gerir Notícias" data={news} table="news" fields={[{key: 'title', label: 'Título', required: true}, {key: 'content', label: 'Conteúdo', type: 'richtext'}, {key: 'image_url', label: 'Imagem', type: 'image'}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
               {adminTab === 'jogos' && <AdminList title="Gerir Jogos" data={matches} table="matches" fields={[{key: 'home_team', label: 'Equipa Casa', required: true}, {key: 'guest_team', label: 'Equipa Fora', required: true}, {key: 'date', label: 'Data', type: 'datetime-local', required: true}, {key: 'location', label: 'Local'}, {key: 'category', label: 'Escalão'}, {key: 'score_home', label: 'Pontos Casa', type: 'number'}, {key: 'score_guest', label: 'Pontos Fora', type: 'number'}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
               {adminTab === 'loja' && <AdminList title="Gerir Produtos" data={products} table="products" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'price', label: 'Preço', type: 'number', required: true}, {key: 'description', label: 'Descrição', type: 'richtext'}, {key: 'image_url', label: 'Imagem', type: 'image'}, {key: 'hide_price', label: 'Ocultar Preço', type: 'checkbox'}, {key: 'hide_order_button', label: 'Ocultar Botão Encomendar', type: 'checkbox'}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
               {adminTab === 'parceiros' && <AdminList title="Gerir Parceiros" data={partners} table="partners" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'website_url', label: 'Website'}, {key: 'logo_url', label: 'Logo', type: 'image'}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
               {adminTab === 'equipas' && <AdminList title="Gerir Equipas" data={teams} table="teams" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'category', label: 'Escalão'}, {key: 'coaches', label: 'Treinadores', type: 'richtext'}, {key: 'description', label: 'Descrição', type: 'richtext'}, {key: 'image_url', label: 'Foto', type: 'image'}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
               {adminTab === 'atletas' && <AdminList title="Gerir Atletas (Plantel)" data={teamMembers} table="team_members" fields={[{key: 'team_id', label: 'Equipa', type: 'select', required: true, options: teams.map(t => ({value: t.id, label: t.name}))}, {key: 'name', label: 'Nome', required: true}, {key: 'number', label: 'Número', type: 'number'}, {key: 'position', label: 'Posição'}, {key: 'image_url', label: 'Foto', type: 'image'}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
-              {adminTab === 'galeria' && <AdminList title="Gerir Fotos" data={gallery} table="gallery" fields={[{key: 'title', label: 'Título'}, {key: 'image_url', label: 'Imagem', type: 'image', required: true}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
+              {adminTab === 'galeria' && <AdminList title="Gerir Fotos" data={gallery} table="gallery" fields={[{key: 'title', label: 'Título'}, {key: 'category', label: 'Categoria', type: 'select', options: [{value: 'Jogos', label: 'Jogos'}, {value: 'Treinos', label: 'Treinos'}, {value: 'Eventos', label: 'Eventos'}]}, {key: 'image_url', label: 'Imagem', type: 'image', required: true}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
               {adminTab === 'órgãos sociais' && <AdminList title="Gerir Órgãos Sociais" data={organization} table="organization" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'role', label: 'Cargo', required: true}, {key: 'department', label: 'Órgão Social', type: 'select', required: true, defaultValue: 'Direção', options: [{value: 'Mesa da Assembleia Geral', label: 'Mesa da Assembleia Geral'}, {value: 'Conselho Fiscal', label: 'Conselho Fiscal'}, {value: 'Direção', label: 'Direção'}]}, {key: 'display_order', label: 'Posição (Ordem)', type: 'number', defaultValue: 0}, {key: 'image_url', label: 'Foto', type: 'image'}, {key: 'show_photo', label: 'Mostrar Foto', type: 'checkbox', defaultValue: true}]} onCreate={createItem} onUpdate={updateItem} onDelete={deleteItem} />}
               {adminTab === 'imagens' && <StorageManager />}
               {adminTab === 'definições' && <DatabaseFixTool />}
@@ -1945,90 +2222,92 @@ export default function App() {
     );
   };
 
-  const renderContent = () => {
-    if (currentPage === 'admin') {
-       if (!session) {
-         return (
-            <div className="flex items-center justify-center min-h-screen bg-black text-white">
-               <div className="bg-neutral-900 p-8 rounded-xl shadow-2xl border border-neutral-800 w-full max-w-md">
-                  <div className="flex justify-center mb-6">
-                    {siteContent['branding']?.image_url ? (
-                       <img src={siteContent['branding'].image_url} alt="Logo" className="h-20 object-contain" />
-                    ) : (
-                       <h2 className="text-3xl font-black italic text-primary">ALMA</h2>
-                    )}
-                  </div>
-                  <h2 className="text-xl font-bold mb-6 text-center text-white">Acesso Reservado</h2>
-                  {loginError && <div className="bg-red-500/10 text-red-500 p-3 rounded mb-4 text-sm border border-red-500/20 flex items-center gap-2"><AlertTriangle size={16}/> {loginError}</div>}
-                  <form onSubmit={handleAuth} className="space-y-4">
-                     <div>
-                       <label className="block text-xs font-bold text-neutral-500 uppercase mb-1">Email</label>
-                       <input type="text" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-black border border-neutral-800 rounded p-3 focus:border-primary outline-none text-white transition focus:ring-1 focus:ring-primary" />
-                     </div>
-                     <div>
-                       <label className="block text-xs font-bold text-neutral-500 uppercase mb-1">Password</label>
-                       <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-black border border-neutral-800 rounded p-3 focus:border-primary outline-none text-white transition focus:ring-1 focus:ring-primary" placeholder="••••••••" />
-                     </div>
-                     <button className="w-full bg-primary text-white font-bold py-3 rounded hover:bg-orange-600 transition uppercase tracking-widest text-sm shadow-lg shadow-primary/20">Entrar</button>
-                  </form>
-                  <button onClick={() => setCurrentPage('home')} className="mt-6 text-xs text-neutral-500 hover:text-white block text-center w-full uppercase tracking-widest font-bold transition">Voltar ao site</button>
-               </div>
+  const renderAuthForm = () => (
+    <div className="flex items-center justify-center min-h-screen bg-black text-white px-4">
+       <div className="bg-neutral-900 p-8 rounded-xl shadow-2xl border border-neutral-800 w-full max-w-md animate-fade-in-up">
+          <div className="flex justify-center mb-6">
+            {siteContent['branding']?.image_url ? (
+               <img src={siteContent['branding'].image_url} alt="Logo" className="h-20 object-contain" />
+            ) : (
+               <h2 className="text-3xl font-black italic text-primary">ALMA</h2>
+            )}
+          </div>
+          <h2 className="text-xl font-bold mb-1 text-center text-white">Acesso Reservado</h2>
+          <p className="text-[10px] text-neutral-500 text-center mb-8 uppercase tracking-widest font-bold">Painel Administrativo - Acesso Restrito</p>
+          
+          {loginError && (
+            <div className="bg-red-500/10 text-red-500 p-3 rounded mb-6 text-sm border border-red-500/20 flex items-center gap-2 animate-shake">
+              <AlertTriangle size={16}/> {loginError}
             </div>
-         );
-       }
+          )}
+          
+          <form onSubmit={handleAuth} className="space-y-5">
+             <div>
+               <label className="block text-xs font-bold text-neutral-500 uppercase mb-1.5 ml-1">Email / Utilizador</label>
+               <input 
+                 type="text" 
+                 value={email} 
+                 onChange={e => setEmail(e.target.value)} 
+                 className="w-full bg-black border border-neutral-800 rounded-lg p-3.5 focus:border-primary outline-none text-white transition focus:ring-1 focus:ring-primary shadow-inner" 
+                 placeholder="ex: admin"
+               />
+             </div>
+             <div>
+               <label className="block text-xs font-bold text-neutral-500 uppercase mb-1.5 ml-1">Password</label>
+               <input 
+                 type="password" 
+                 value={password} 
+                 onChange={e => setPassword(e.target.value)} 
+                 className="w-full bg-black border border-neutral-800 rounded-lg p-3.5 focus:border-primary outline-none text-white transition focus:ring-1 focus:ring-primary shadow-inner" 
+                 placeholder="••••••••" 
+               />
+             </div>
+             <button className="w-full bg-primary text-white font-bold py-4 rounded-lg hover:bg-orange-600 transition uppercase tracking-widest text-sm shadow-xl shadow-primary/20 transform active:scale-95">
+               Entrar no Painel
+             </button>
+          </form>
+          <button onClick={() => setCurrentPage('home')} className="mt-8 text-[10px] text-neutral-500 hover:text-white block text-center w-full uppercase tracking-widest font-bold transition flex items-center justify-center gap-2">
+            <ArrowRight size={12} className="rotate-180" /> Voltar ao site
+          </button>
+       </div>
+    </div>
+  );
+
+  const renderContent = () => {
+    if (currentPage === 'admin' || currentPage === 'login') {
+       if (!session) return renderAuthForm();
+       if (currentPage === 'login') { setCurrentPage('admin'); return null; }
        return renderAdmin();
     }
     
-    if (currentPage === 'login') {
-        if (session) {
-            setCurrentPage('admin');
-            return null;
-        }
-        return (
-            <div className="flex items-center justify-center min-h-screen bg-black text-white">
-               <div className="bg-neutral-900 p-8 rounded-xl shadow-2xl border border-neutral-800 w-full max-w-md">
-                  <div className="flex justify-center mb-6">
-                    {siteContent['branding']?.image_url ? (
-                       <img src={siteContent['branding'].image_url} alt="Logo" className="h-20 object-contain" />
-                    ) : (
-                       <h2 className="text-3xl font-black italic text-primary">ALMA</h2>
-                    )}
-                  </div>
-                  <h2 className="text-xl font-bold mb-6 text-center text-white">Acesso Reservado</h2>
-                  {loginError && <div className="bg-red-500/10 text-red-500 p-3 rounded mb-4 text-sm border border-red-500/20 flex items-center gap-2"><AlertTriangle size={16}/> {loginError}</div>}
-                  <form onSubmit={handleAuth} className="space-y-4">
-                     <div>
-                       <label className="block text-xs font-bold text-neutral-500 uppercase mb-1">Email</label>
-                       <input type="text" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-black border border-neutral-800 rounded p-3 focus:border-primary outline-none text-white transition focus:ring-1 focus:ring-primary" />
-                     </div>
-                     <div>
-                       <label className="block text-xs font-bold text-neutral-500 uppercase mb-1">Password</label>
-                       <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-black border border-neutral-800 rounded p-3 focus:border-primary outline-none text-white transition focus:ring-1 focus:ring-primary" placeholder="••••••••" />
-                     </div>
-                     <button className="w-full bg-primary text-white font-bold py-3 rounded hover:bg-orange-600 transition uppercase tracking-widest text-sm shadow-lg shadow-primary/20">Entrar</button>
-                  </form>
-                  <button onClick={() => setCurrentPage('home')} className="mt-6 text-xs text-neutral-500 hover:text-white block text-center w-full uppercase tracking-widest font-bold transition">Voltar ao site</button>
-               </div>
-            </div>
-        );
+    if (currentPage === 'about') return <AboutPage teams={teams} organization={organization} teamMembers={teamMembers} />;
+    if (currentPage === 'contacts') return <ContactsPage content={siteContent['contacts']} siteContent={siteContent} />;
+    if (currentPage === 'home') {
+      return (
+        <LandingPage 
+          onNavigate={setCurrentPage} 
+          news={news} 
+          matches={matches} 
+          products={products} 
+          partners={partners} 
+          teams={teams}
+          teamMembers={teamMembers}
+          gallery={gallery}
+          heroContent={siteContent['hero'] || null}
+          siteContent={siteContent}
+        />
+      );
     }
 
-    if (currentPage === 'about') return <AboutPage teams={teams} organization={organization} teamMembers={teamMembers} />;
-    if (currentPage === 'contacts') return <ContactsPage content={siteContent['contacts']} />;
-
+    // 404 Fallback
     return (
-      <LandingPage 
-        onNavigate={setCurrentPage} 
-        news={news} 
-        matches={matches} 
-        products={products} 
-        partners={partners} 
-        teams={teams}
-        teamMembers={teamMembers}
-        gallery={gallery}
-        heroContent={siteContent['hero'] || null}
-        siteContent={siteContent}
-      />
+      <div className="min-h-[70vh] flex flex-col items-center justify-center text-center px-4">
+        <h2 className="text-8xl font-black italic text-primary mb-4">404</h2>
+        <h3 className="text-2xl font-bold mb-8">Página não encontrada</h3>
+        <button onClick={() => setCurrentPage('home')} className="bg-white text-black px-8 py-3 rounded-full font-bold hover:bg-primary hover:text-white transition">
+          Ir para o Início
+        </button>
+      </div>
     );
   };
 
@@ -2041,15 +2320,26 @@ export default function App() {
     );
   }
 
-  return (
-    <>
-      {currentPage !== 'admin' && currentPage !== 'login' && (
-         <Navbar onNavigate={setCurrentPage} currentPage={currentPage} isAdmin={!!session} logoUrl={siteContent['branding']?.image_url} siteContent={siteContent} />
-      )}
-      {renderContent()}
-      {currentPage !== 'admin' && currentPage !== 'login' && (
-         <Footer onNavigate={setCurrentPage} content={siteContent['footer']} />
-      )}
-    </>
-  );
+    return (
+      <div className="relative">
+        {currentPage !== 'admin' && currentPage !== 'login' && (
+           <Navbar onNavigate={setCurrentPage} currentPage={currentPage} isAdmin={!!session} logoUrl={siteContent['branding']?.image_url} siteContent={siteContent} />
+        )}
+        {renderContent()}
+        {currentPage !== 'admin' && currentPage !== 'login' && (
+           <Footer onNavigate={setCurrentPage} content={siteContent['footer']} siteContent={siteContent} />
+        )}
+
+        {/* Back to Top Button */}
+        {showBackToTop && currentPage !== 'admin' && (
+          <button 
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            className="fixed bottom-8 right-8 z-40 bg-primary text-white p-3 rounded-full shadow-2xl hover:bg-orange-600 transition-all transform hover:scale-110 animate-fade-in border-2 border-white/20"
+            title="Voltar ao topo"
+          >
+            <ChevronLeft size={24} className="rotate-90" />
+          </button>
+        )}
+      </div>
+    );
 }
