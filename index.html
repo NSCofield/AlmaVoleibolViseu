@@ -3,15 +3,47 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ALMA Viseu - Website Oficial | Clube de Voleibol</title>
-    <meta name="description" content="Website oficial do ALMA Viseu, o clube de voleibol de referência em Viseu. Notícias, calendário de jogos, resultados e loja oficial do clube." />
-    <meta name="keywords" content="voleibol, viseu, alma voleibol, alma viseu, desporto viseu, clube voleibol, pavilhão alves martins" />
-    <meta property="og:title" content="ALMA Viseu - Clube de Voleibol" />
-    <meta property="og:description" content="Acompanha o voleibol do ALMA Viseu. Notícias, jogos e muito mais." />
+    <title>ALMA Viseu – Website Oficial | Voleibol em Viseu</title>
+    <meta name="description" content="Bem-vindo ao ALMA Viseu, o clube de voleibol de referência em Viseu. Acompanha notícias, calendários, resultados e visita a nossa loja oficial." />
+    <meta name="keywords" content="voleibol, viseu, alma voleibol, alma viseu, desporto viseu, clube voleibol, pavilhão alves martins, desporto formação" />
+    
+    <!-- OpenGraph -->
     <meta property="og:type" content="website" />
+    <meta property="og:title" content="ALMA Viseu – Website Oficial | Voleibol em Viseu" />
+    <meta property="og:description" content="Paixão, Competição e Espírito de Equipa. Toda a atualidade do ALMA Viseu no nosso site oficial." />
+    <meta property="og:site_name" content="ALMA Viseu" />
+    <meta property="og:image" content="/pwa-512x512.png" />
+    
+    <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="ALMA Viseu - Clube de Voleibol" />
-    <meta name="twitter:description" content="Toda a atualidade do ALMA Viseu no nosso site oficial." />
+    <meta name="twitter:title" content="ALMA Viseu – Website Oficial | Voleibol em Viseu" />
+    <meta name="twitter:description" content="Paixão, Competição e Espírito de Equipa. Acompanha o ALMA Viseu." />
+    <meta name="twitter:image" content="/pwa-512x512.png" />
+
+    <!-- PWA & Mobile -->
+    <meta name="theme-color" content="#eb5929" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="ALMA Viseu" />
+    <link rel="apple-touch-icon" href="/pwa-192x192.png" />
+
+    <!-- Structured Data (JSON-LD) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SportsOrganization",
+      "name": "ALMA Viseu",
+      "sport": "Volleyball",
+      "address": {
+        "@type": "PostalAddress",
+        "addressLocality": "Viseu",
+        "addressCountry": "PT"
+      },
+      "description": "Clube de Voleibol sediado em Viseu, focado na formação e competição.",
+      "url": "https://almaviseu.pt"
+    }
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {

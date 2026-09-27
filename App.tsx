@@ -5,6 +5,7 @@ import { twMerge } from 'tailwind-merge';
 import { supabase } from './lib/supabase';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
+import { PWAInstallButton } from './components/PWAInstallButton';
 import { NewsItem, Match, Product, Partner, Team, TeamMember, GalleryItem, OrganizationMember, SiteContent } from './types';
 import { 
   Loader2, Calendar, MapPin, ShoppingBag, Users, 
@@ -31,6 +32,52 @@ const Reveal = ({ children, className, delay = 0 }: { children: React.ReactNode,
     >
       {children}
     </motion.div>
+  );
+};
+
+const Countdown = ({ targetDate }: { targetDate: string }) => {
+  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+  const [isFinished, setIsFinished] = useState(false);
+
+  useEffect(() => {
+    const calculateTimeLeft = () => {
+      const difference = +new Date(targetDate) - +new Date();
+      if (difference <= 0) {
+        setIsFinished(true);
+        return;
+      }
+
+      setTimeLeft({
+        days: Math.floor(difference / (1000 * 60 * 60 * 24)),
+        hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
+        minutes: Math.floor((difference / 1000 / 60) % 60),
+        seconds: Math.floor((difference / 1000) % 60),
+      });
+    };
+
+    const timer = setInterval(calculateTimeLeft, 1000);
+    calculateTimeLeft();
+    return () => clearInterval(timer);
+  }, [targetDate]);
+
+  if (isFinished) return null;
+
+  return (
+    <div className="flex gap-4 justify-center mt-6">
+      {[
+        { label: 'Dias', value: timeLeft.days },
+        { label: 'Horas', value: timeLeft.hours },
+        { label: 'Min', value: timeLeft.minutes },
+        { label: 'Seg', value: timeLeft.seconds },
+      ].map((item, i) => (
+        <div key={i} className="flex flex-col items-center">
+          <div className="bg-white/10 backdrop-blur-md border border-white/20 w-14 h-14 md:w-20 md:h-20 rounded-xl flex items-center justify-center text-xl md:text-3xl font-black text-primary shadow-xl">
+            {String(item.value).padStart(2, '0')}
+          </div>
+          <span className="text-[10px] md:text-xs uppercase font-bold tracking-widest mt-2 text-neutral-400">{item.label}</span>
+        </div>
+      ))}
+    </div>
   );
 };
 
@@ -915,6 +962,16 @@ const LandingPage = ({
               Ver Jogos
             </button>
           </motion.div>
+          {nextMatch && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 1 }}
+            >
+              <div className="mt-12 text-xs uppercase tracking-widest font-bold text-neutral-400 mb-2">Próximo Grande Duelo</div>
+              <Countdown targetDate={nextMatch.date} />
+            </motion.div>
+          )}
         </div>
       </section>
 
@@ -2329,6 +2386,8 @@ export default function App() {
         {currentPage !== 'admin' && currentPage !== 'login' && (
            <Footer onNavigate={setCurrentPage} content={siteContent['footer']} siteContent={siteContent} />
         )}
+
+        <PWAInstallButton />
 
         {/* Back to Top Button */}
         {showBackToTop && currentPage !== 'admin' && (

@@ -59,7 +59,7 @@ export const Footer: React.FC<FooterProps> = ({ content, onNavigate, siteContent
         {/* Social */}
         <div>
           <h4 className="text-lg font-bold mb-4 border-b border-gray-700 pb-2">Segue-nos</h4>
-          <div className="flex flex-wrap gap-4">
+          <div className="flex flex-wrap gap-4 mb-8">
             {socialLinks.facebook && (
               <a href={socialLinks.facebook} target="_blank" rel="noopener noreferrer" className="bg-gray-800 p-3 rounded-full hover:bg-primary transition-all duration-300 transform hover:scale-110 shadow-lg shadow-black/20" title="Facebook">
                 <Facebook size={20} />
@@ -76,6 +76,20 @@ export const Footer: React.FC<FooterProps> = ({ content, onNavigate, siteContent
               </a>
             )}
           </div>
+
+          <h4 className="text-lg font-bold mb-4 border-b border-gray-700 pb-2">Newsletter</h4>
+          <p className="text-xs text-gray-400 mb-3">Subscreve para receberes as últimas novidades.</p>
+          <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); alert('Subscrição efetuada com sucesso!'); }}>
+            <input 
+              type="email" 
+              placeholder="O teu email" 
+              className="bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-sm focus:border-primary outline-none flex-1"
+              required
+            />
+            <button className="bg-primary text-white p-2 rounded-lg hover:bg-orange-600 transition">
+              <Mail size={18} />
+            </button>
+          </form>
         </div>
       </div>
       
